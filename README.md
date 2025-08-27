@@ -46,10 +46,13 @@ python run.py
 python main.py
 
 # 方式3: 测试项目结构
-python test_imports.py
+python test/test_imports.py
 
 # 方式4: 测试日志系统
-python test_logger.py
+python test/test_logger.py
+
+# 方式5: 测试FFmpeg配置
+python test/test_ffmpeg_config.py
 ```
 
 ###  使用指南
@@ -82,20 +85,32 @@ BiliDownload/
 │   ├── core/              # 核心功能模块
 │   │   ├── downloader.py  # 下载器核心
 │   │   ├── config_manager.py  # 配置管理
-│   │   └── file_manager.py    # 文件管理
+│   │   ├── file_manager.py    # 文件管理
+│   │   └── logger.py      # 日志系统
 │   └── ui/                # 用户界面模块
 │       ├── main_window.py # 主窗口
 │       ├── download_tab.py    # 下载标签页
 │       ├── file_manager_tab.py    # 文件管理标签页
 │       ├── category_tab.py   # 分类管理标签页
 │       └── settings_tab.py   # 设置标签页
+├── test/                   # 测试文件目录
+│   ├── test_imports.py    # 模块导入测试
+│   ├── test_logger.py     # 日志系统测试
+│   ├── test_ffmpeg_config.py  # FFmpeg配置测试
+│   └── README.md          # 测试说明文档
+├── doc/                    # 文档目录
+│   ├── CONFIG_README.md   # 配置文件说明
+│   ├── dev_log.md         # 开发日志
+│   ├── config_template.ini # 配置文件模板
+│   └── README.md          # 文档说明
+├── data/                   # 数据存储目录
+│   └── default/           # 默认下载目录
+├── logs/                   # 日志文件目录
 ├── main.py                # 程序入口
 ├── run.py                 # 启动脚本
-├── test_imports.py        # 导入测试
 ├── requirements.txt        # 依赖包列表
 ├── config.ini             # 配置文件
-├── categories.json        # 分类配置文件
-├── dev_log.md             # 开发日志
+├── .gitignore             # Git忽略文件
 └── README.md              # 项目说明
 ```
 

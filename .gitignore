@@ -26,7 +26,7 @@ MANIFEST
 *.qrc
 
 # 开发日志
-dev_log.md
+doc/dev_log.md
 
 # 日志文件
 *.log
