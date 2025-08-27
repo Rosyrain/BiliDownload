@@ -1,6 +1,13 @@
 """
-配置管理器
+Configuration management module for BiliDownload application.
+
+This module provides centralized configuration management including:
+- Application settings
+- Download paths
+- Category management
+- Advanced options
 """
+
 import os
 import json
 import configparser
@@ -11,29 +18,49 @@ from .logger import get_logger
 
 
 class ConfigManager:
-    """配置管理器"""
+    """
+    Configuration manager for BiliDownload application.
+    
+    Manages all application settings including download paths, categories,
+    UI preferences, and advanced options. Provides methods for loading,
+    saving, and accessing configuration values.
+    """
     
     def __init__(self, config_file: str = "config.ini"):
+        """
+        Initialize the configuration manager.
+        
+        Args:
+            config_file (str): Path to the configuration file
+        """
         self.config_file = config_file
         self.config = configparser.ConfigParser()
         self.logger = get_logger("ConfigManager")
-        self.logger.info("配置管理器初始化")
+        self.logger.info("Configuration manager initialized")
         self.load_config()
     
     def load_config(self):
-        """加载配置文件"""
+        """
+        Load configuration from file.
+        
+        Creates default configuration if file doesn't exist.
+        """
         if os.path.exists(self.config_file):
             self.config.read(self.config_file, encoding='utf-8')
-            self.logger.info(f"已加载配置文件: {self.config_file}")
+            self.logger.info(f"Configuration file loaded: {self.config_file}")
         else:
-            self.logger.info("配置文件不存在，创建默认配置")
+            self.logger.info("Configuration file not found, creating default configuration")
             self.create_default_config()
     
     def create_default_config(self):
-        """创建默认配置"""
-        self.logger.info("创建默认配置")
+        """
+        Create default configuration with standard settings.
         
-        # 获取项目根目录
+        Sets up default download paths, categories, and application preferences.
+        """
+        self.logger.info("Creating default configuration")
+        
+        # Get project root directory
         project_root = Path(__file__).parent.parent.parent
         default_download_path = str(project_root / "data" / "default")
         
@@ -79,173 +106,262 @@ class ConfigManager:
         }
         
         self.save_config()
-        self.logger.info("默认配置创建完成")
+        self.logger.info("Default configuration created successfully")
         
-        # 创建默认目录结构
+        # Create default directory structure
         self._create_default_directories()
     
     def _create_default_directories(self):
-        """创建默认目录结构"""
+        """
+        Create default directory structure for downloads and categories.
+        
+        Creates data/ directory and all category subdirectories as specified
+        in the [CATEGORIES] section of the configuration.
+        """
         try:
             project_root = Path(__file__).parent.parent.parent
             data_dir = project_root / "data"
             
-            # 创建data目录
+            # Create data directory
             data_dir.mkdir(exist_ok=True)
-            self.logger.info(f"创建目录: {data_dir}")
+            self.logger.info(f"Directory created: {data_dir}")
             
-            # 创建所有分类目录
+            # Create all category directories
             categories = self.get_all_categories()
             for category_name, category_path in categories.items():
                 category_dir = data_dir / category_path
                 category_dir.mkdir(parents=True, exist_ok=True)
-                self.logger.info(f"创建分类目录: {category_dir}")
+                self.logger.info(f"Category directory created: {category_dir}")
                 
         except Exception as e:
-            self.logger.error(f"创建默认目录失败: {e}")
+            self.logger.error(f"Failed to create default directories: {e}")
     
     def save_config(self):
-        """保存配置文件"""
+        """
+        Save current configuration to file.
+        
+        Writes all configuration changes to the config.ini file.
+        """
         with open(self.config_file, 'w', encoding='utf-8') as f:
             self.config.write(f)
-        self.logger.debug(f"配置文件已保存: {self.config_file}")
+        self.logger.debug(f"Configuration file saved: {self.config_file}")
     
     def get(self, section: str, key: str, fallback: str = None) -> str:
-        """获取配置值"""
+        """
+        Get configuration value.
+        
+        Args:
+            section (str): Configuration section name
+            key (str): Configuration option name
+            fallback (str, optional): Default value if option not found
+            
+        Returns:
+            str: Configuration value or fallback
+        """
         return self.config.get(section, key, fallback=fallback)
     
     def set(self, section: str, key: str, value: str):
-        """设置配置值"""
-        # DEFAULT 节是特殊节，不能手动添加
+        """
+        Set configuration value.
+        
+        Args:
+            section (str): Configuration section name
+            key (str): Configuration option name
+            value (str): Value to set
+        """
+        # DEFAULT section is special and cannot be manually added
         if section == 'DEFAULT':
-            # 直接设置值，不需要检查节是否存在
+            # Directly set value for DEFAULT section without checking existence
             old_value = self.config.get(section, key, fallback=None)
             self.config.set(section, key, value)
         else:
-            # 其他节需要检查是否存在
+            # Other sections need to check if they exist
             if not self.config.has_section(section):
                 self.config.add_section(section)
-                self.logger.debug(f"新增配置节: [{section}]")
+                self.logger.debug(f"New configuration section added: [{section}]")
             
             old_value = self.config.get(section, key, fallback=None)
             self.config.set(section, key, value)
         
         if old_value != value:
-            self.logger.info(f"配置变更: [{section}] {key} = {value}")
+            self.logger.info(f"Configuration changed: [{section}] {key} = {value}")
             self.logger.log_config_change(section, key, value)
         
         self.save_config()
     
     def get_download_path(self) -> str:
-        """获取下载路径"""
+        """
+        Get the default download path.
+        
+        Returns:
+            str: Default download path from configuration
+        """
         path = self.get('DEFAULT', 'download_path')
         if not os.path.exists(path):
             os.makedirs(path, exist_ok=True)
         return path
     
     def set_download_path(self, path: str):
-        """设置下载路径"""
+        """
+        Set the default download path.
+        
+        Args:
+            path (str): New download path to set
+        """
         self.set('DEFAULT', 'download_path', path)
     
     def get_ffmpeg_path(self) -> str:
-        """获取FFmpeg路径"""
+        """
+        Get FFmpeg executable path.
+        
+        Returns:
+            str: FFmpeg path from configuration
+        """
         return self.get('DEFAULT', 'ffmpeg_path')
     
     def set_ffmpeg_path(self, path: str):
-        """设置FFmpeg路径"""
+        """
+        Set FFmpeg executable path.
+        
+        Args:
+            path (str): New FFmpeg path to set
+        """
         self.set('DEFAULT', 'ffmpeg_path', path)
     
     def get_category_path(self, category_name: str) -> str:
-        """获取分类对应的下载路径"""
+        """
+        Get download path for a specific category.
+        
+        Args:
+            category_name (str): Category name
+            
+        Returns:
+            str: Full path for the category, or default path if category not found
+        """
         try:
-            # 从配置中获取分类路径
+            # Get category path from configuration
             category_path = self.config.get('CATEGORIES', category_name, fallback=None)
             if category_path:
-                # 构建完整路径
+                # Build full path
                 project_root = Path(__file__).parent.parent.parent
                 full_path = project_root / "data" / category_path
                 full_path.mkdir(parents=True, exist_ok=True)
                 return str(full_path)
             else:
-                # 如果分类不存在，返回默认路径
+                # If category doesn't exist, return default path
                 return self.get_download_path()
         except Exception as e:
-            self.logger.error(f"获取分类路径失败: {e}")
+            self.logger.error(f"Failed to get category path: {e}")
             return self.get_download_path()
     
     def get_series_download_path(self, category_name: str, series_name: str) -> str:
-        """获取系列视频的下载路径"""
+        """
+        Get download path for series videos within a category.
+        
+        Args:
+            category_name (str): Category name
+            series_name (str): Series name for folder naming
+            
+        Returns:
+            str: Full path for series downloads
+        """
         try:
-            # 获取分类路径
+            # Get category path
             category_path = self.get_category_path(category_name)
             if category_path:
-                # 在分类目录下创建系列文件夹
+                # Create series folder within category directory
                 series_path = Path(category_path) / series_name
                 series_path.mkdir(parents=True, exist_ok=True)
-                self.logger.info(f"创建系列目录: {series_path}")
+                self.logger.info(f"Series directory created: {series_path}")
                 return str(series_path)
             else:
-                # 如果分类路径获取失败，在默认目录下创建
+                # If category path retrieval failed, create in default directory
                 default_path = self.get_download_path()
                 series_path = Path(default_path) / series_name
                 series_path.mkdir(parents=True, exist_ok=True)
-                self.logger.info(f"在默认目录创建系列目录: {series_path}")
+                self.logger.info(f"Series directory created in default directory: {series_path}")
                 return str(series_path)
         except Exception as e:
-            self.logger.error(f"获取系列下载路径失败: {e}")
-            # 返回默认路径
+            self.logger.error(f"Failed to get series download path: {e}")
+            # Return default path
             return self.get_download_path()
     
     def add_category(self, name: str, path: str = None) -> bool:
-        """添加分类"""
+        """
+        Add a new download category.
+        
+        Args:
+            name (str): Category name
+            path (str, optional): Custom path for the category
+            
+        Returns:
+            bool: True if successful, False otherwise
+        """
         try:
             if not path:
-                # 如果没有指定路径，使用分类名作为路径
+                # If no path specified, use category name as path
                 path = name
             
-            # 添加到配置
+            # Add to configuration
             self.config.set('CATEGORIES', name, path)
             
-            # 创建对应的目录
+            # Create corresponding directory
             project_root = Path(__file__).parent.parent.parent
             category_dir = project_root / "data" / path
             category_dir.mkdir(parents=True, exist_ok=True)
             
-            self.logger.info(f"添加分类: {name} -> {path}")
-            self.logger.log_category_operation("添加", name, f"路径: {path}")
+            self.logger.info(f"Category added: {name} -> {path}")
+            self.logger.log_category_operation("add", name, f"path: {path}")
             
             return True
             
         except Exception as e:
-            self.logger.error(f"添加分类失败: {e}")
+            self.logger.error(f"Failed to add category: {e}")
             return False
     
     def remove_category(self, name: str) -> bool:
-        """删除分类"""
+        """
+        Remove a download category.
+        
+        Args:
+            name (str): Category name to remove
+            
+        Returns:
+            bool: True if successful, False otherwise
+            
+        Note:
+            This only removes the category from configuration.
+            The actual directory and files are not deleted.
+        """
         try:
             if name == 'default':
-                self.logger.warning("不能删除默认分类")
+                self.logger.warning("Cannot delete default category")
                 return False
             
-            # 从配置中移除
+            # Remove from configuration
             if self.config.has_option('CATEGORIES', name):
                 self.config.remove_option('CATEGORIES', name)
                 self.save_config()
-                
-                self.logger.info(f"删除分类: {name}")
-                self.logger.log_category_operation("删除", name)
+
+                self.logger.info(f"Category removed: {name}")
+                self.logger.log_category_operation("remove", name)
                 
                 return True
             else:
-                self.logger.warning(f"分类不存在: {name}")
+                self.logger.warning(f"Category not found: {name}")
                 return False
                 
         except Exception as e:
-            self.logger.error(f"删除分类失败: {e}")
+            self.logger.error(f"Failed to remove category: {e}")
             return False
     
     def get_all_categories(self) -> Dict[str, str]:
-        """获取所有分类"""
+        """
+        Get all available categories.
+        
+        Returns:
+            Dict[str, str]: Dictionary mapping category names to their paths
+        """
         try:
             categories = {}
             if self.config.has_section('CATEGORIES'):
@@ -254,17 +370,22 @@ class ConfigManager:
                     categories[key] = value
             return categories
         except Exception as e:
-            self.logger.error(f"获取分类列表失败: {e}")
+            self.logger.error(f"Failed to get category list: {e}")
             return {}
     
     def get_category_tree(self) -> Dict[str, Any]:
-        """获取分类树结构"""
+        """
+        Get hierarchical category structure.
+        
+        Returns:
+            Dict[str, Any]: Tree structure of categories with nested paths
+        """
         try:
             categories = self.get_all_categories()
             tree = {}
             
             for name, path in categories.items():
-                # 解析路径层级
+                # Parse path hierarchy
                 path_parts = path.split('/')
                 current_level = tree
                 
@@ -281,21 +402,51 @@ class ConfigManager:
             return tree
             
         except Exception as e:
-            self.logger.error(f"获取分类树失败: {e}")
+            self.logger.error(f"Failed to get category tree: {e}")
             return {}
     
     def get_advanced_setting(self, key: str, fallback: str = None) -> str:
-        """获取高级设置"""
+        """
+        Get advanced configuration setting.
+        
+        Args:
+            key (str): Setting option name
+            fallback (str, optional): Default value if not found
+            
+        Returns:
+            str: Setting value or fallback
+        """
         return self.config.get('ADVANCED', key, fallback=fallback)
     
     def set_advanced_setting(self, key: str, value: str):
-        """设置高级设置"""
+        """
+        Set advanced configuration setting.
+        
+        Args:
+            key (str): Setting option name
+            value (str): Value to set
+        """
         self.config.set('ADVANCED', key, value)
     
     def get_download_setting(self, key: str, fallback: str = None) -> str:
-        """获取下载设置"""
+        """
+        Get download configuration setting.
+        
+        Args:
+            key (str): Setting option name
+            fallback (str, optional): Default value if not found
+            
+        Returns:
+            str: Setting value or fallback
+        """
         return self.config.get('DOWNLOAD', key, fallback=fallback)
     
     def set_download_setting(self, key: str, value: str):
-        """设置下载设置"""
+        """
+        Set download configuration setting.
+        
+        Args:
+            key (str): Setting option name
+            value (str): Value to set
+        """
         self.config.set('DOWNLOAD', key, value) 

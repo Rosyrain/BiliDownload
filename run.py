@@ -1,36 +1,39 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-BiliDownload 启动脚本
+Convenience script to run BiliDownload application.
+
+This script provides an alternative way to launch the application
+with proper path setup and error handling.
 """
 
 import sys
 import os
 
-# 添加当前目录到Python路径
-current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, current_dir)
+# Add current directory to Python path
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 def main():
-    """主函数"""
+    """
+    Main function for running the application.
+    
+    Sets up the environment and launches the main application.
+    """
     try:
-        # 导入日志管理器
+        # Import logger manager
         from src.core.logger import get_logger
         
-        # 获取日志管理器
-        logger = get_logger("RunScript")
-        logger.info("BiliDownload 启动脚本执行")
+        # Get logger instance
+        logger = get_logger("Run")
         
-        # 导入并启动主窗口
-        from src.ui.main_window import main as main_window_main
-        logger.info("启动主窗口")
-        main_window_main()
+        # Import and launch main window
+        from main import main as main_function
+        main_function()
+        
     except Exception as e:
-        print(f"启动失败: {e}")
-        import traceback
-        traceback.print_exc()
-        input("按回车键退出...")
+        print(f"Failed to run application: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main() 

@@ -1,68 +1,148 @@
 """
-文件管理器
+File system management module for BiliDownload application.
+
+This module provides file and directory operations including:
+- File listing and navigation
+- File operations (copy, move, delete)
+- File information retrieval
+- Directory management
 """
+
 import os
+import shutil
 import platform
 import subprocess
-from typing import List, Dict, Optional
 from pathlib import Path
-
+from typing import List, Dict, Optional, Tuple
 from .logger import get_logger
 
 
 class FileManager:
-    """文件管理器"""
+    """
+    File system manager for BiliDownload application.
     
-    def __init__(self, base_path: str):
-        self.base_path = Path(base_path)
-        self.system = platform.system()
-        self.logger = get_logger("FileManager")
-        self.logger.info(f"文件管理器初始化，基础路径: {base_path}")
-        self.logger.info(f"操作系统: {self.system}")
+    Handles all file and directory operations including listing,
+    navigation, file operations, and system integration.
     
-    def get_files_in_directory(self, directory: str = None) -> List[Dict]:
-        """获取目录中的文件列表"""
-        if directory is None:
-            directory = self.base_path
-        else:
-            directory = Path(directory)
+    Attributes:
+        logger: Module logger used for error and info messages.
+    """
+    
+    def __init__(self):
+        """
+        Initialize the file manager with logging capability.
         
-        if not directory.exists():
+        Returns:
+            None
+        """
+        self.logger = get_logger(__name__)
+    
+    def list_directory(self, path: str) -> List[Dict[str, any]]:
+        """
+        Get list of files and directories in specified path.
+        
+        Args:
+            path (str): Absolute or relative directory path to list.
+            
+        Returns:
+            List[Dict[str, any]]: List of file/directory information dictionaries. Each
+                item contains at least the following keys:
+                - name (str): Base name of the entry.
+                - path (str): Absolute or provided path to the entry.
+                - is_dir (bool): Whether the entry is a directory.
+                - size (int): File size in bytes (0 for directories or on error).
+                - modified (float): POSIX timestamp of last modification time.
+                - created (float): POSIX timestamp of creation time.
+                
+                The list is sorted by type and name based on implementation details.
+        """
+        try:
+            if not os.path.exists(path):
+                self.logger.error(f"Directory not found: {path}")
+                return []
+            
+            items = []
+            for item in os.listdir(path):
+                item_path = os.path.join(path, item)
+                item_info = self._get_file_info(item_path)
+                items.append(item_info)
+            
+            # Sort by type and name
+            items.sort(key=lambda x: (x['is_dir'], x['name'].lower()))
+            return items
+            
+        except Exception as e:
+            self.logger.error(f"Failed to list directory {path}: {e}")
             return []
-        
-        files = []
-        try:
-            for item in directory.iterdir():
-                file_info = {
-                    'name': item.name,
-                    'path': str(item),
-                    'is_dir': item.is_dir(),
-                    'size': self._get_file_size(item) if item.is_file() else 0,
-                    'modified': item.stat().st_mtime,
-                    'extension': item.suffix if item.is_file() else ''
-                }
-                files.append(file_info)
-            
-            # 按类型和名称排序
-            files.sort(key=lambda x: (not x['is_dir'], x['name'].lower()))
-            
-        except PermissionError:
-            self.logger.warning(f"权限不足，无法访问目录: {directory}")
-        except Exception as e:
-            self.logger.error(f"获取目录文件列表失败: {e}")
-        
-        return files
     
-    def _get_file_size(self, file_path: Path) -> int:
-        """获取文件大小"""
+    def _get_file_info(self, file_path: str) -> Dict[str, any]:
+        """
+        Get detailed information about a file or directory.
+        
+        Args:
+            file_path (str): Path to the file or directory.
+            
+        Returns:
+            Dict[str, any]: File information dictionary with keys:
+                - name (str): Base name of the file or directory.
+                - path (str): Absolute or provided path to the entry.
+                - is_dir (bool): Whether the entry is a directory.
+                - size (int): File size in bytes (0 for directories or on error).
+                - modified (float): POSIX timestamp of last modification time.
+                - created (float): POSIX timestamp of creation time.
+                
+            On error, returns a best-effort structure with defaults.
+        """
         try:
-            return file_path.stat().st_size
+            stat = os.stat(file_path)
+            return {
+                'name': os.path.basename(file_path),
+                'path': file_path,
+                'is_dir': os.path.isdir(file_path),
+                'size': stat.st_size if not os.path.isdir(file_path) else 0,
+                'modified': stat.st_mtime,
+                'created': stat.st_ctime
+            }
         except Exception as e:
-            self.logger.debug(f"获取文件大小失败: {file_path} - {e}")
+            self.logger.error(f"Failed to get file info for {file_path}: {e}")
+            return {
+                'name': os.path.basename(file_path),
+                'path': file_path,
+                'is_dir': False,
+                'size': 0,
+                'modified': 0,
+                'created': 0
+            }
+    
+    def get_file_size(self, file_path: str) -> int:
+        """
+        Get file size in bytes.
+        
+        Args:
+            file_path (str): Path to the file.
+            
+        Returns:
+            int: File size in bytes, or 0 if the file does not exist or is a directory,
+            or on error.
+        """
+        try:
+            if os.path.isfile(file_path):
+                return os.path.getsize(file_path)
+            return 0
+        except Exception as e:
+            self.logger.error(f"Failed to get file size for {file_path}: {e}")
             return 0
     
     def format_file_size(self, size_bytes: int) -> str:
-        """格式化文件大小显示"""
+        """
+        Format file size for human-readable display.
+        
+        Args:
+            size_bytes (int): File size in bytes.
+            
+        Returns:
+            str: Formatted file size string using binary units (e.g., "1.5 MB").
+        """
         if size_bytes == 0:
             return "0 B"
         
@@ -75,152 +155,220 @@ class FileManager:
         return f"{size_bytes:.1f} {size_names[i]}"
     
     def open_file(self, file_path: str) -> bool:
-        """打开文件（使用系统默认程序）"""
+        """
+        Open file using system default application.
+        
+        Args:
+            file_path (str): Path to the file to open.
+            
+        Returns:
+            bool: True if the file launch command was executed successfully, False otherwise.
+            
+        Notes:
+            Uses platform-specific mechanisms: os.startfile on Windows, "open" on macOS,
+            and "xdg-open" on Linux.
+        """
         try:
-            if self.system == "Darwin":  # macOS
-                subprocess.run(["open", file_path], check=True)
-            elif self.system == "Windows":
+            if not os.path.exists(file_path):
+                self.logger.error(f"File not found: {file_path}")
+                return False
+            
+            system = platform.system()
+            if system == "Windows":
                 os.startfile(file_path)
+            elif system == "Darwin":  # macOS
+                subprocess.run(["open", file_path], check=True)
             else:  # Linux
                 subprocess.run(["xdg-open", file_path], check=True)
+            
+            self.logger.info(f"File opened: {file_path}")
             return True
+            
         except Exception as e:
-            self.logger.error(f"打开文件失败: {file_path} - {e}")
+            self.logger.error(f"Failed to open file {file_path}: {e}")
             return False
     
     def open_folder(self, folder_path: str) -> bool:
-        """打开文件夹"""
+        """
+        Open folder in system file manager.
+        
+        Args:
+            folder_path (str): Path to the folder to open.
+            
+        Returns:
+            bool: True if the folder launch command was executed successfully, False otherwise.
+            
+        Notes:
+            Uses platform-specific mechanisms: explorer on Windows, "open" on macOS,
+            and "xdg-open" on Linux.
+        """
         try:
-            if self.system == "Darwin":  # macOS
-                subprocess.run(["open", folder_path], check=True)
-            elif self.system == "Windows":
+            if not os.path.exists(folder_path):
+                self.logger.error(f"Folder not found: {folder_path}")
+                return False
+            
+            system = platform.system()
+            if system == "Windows":
                 subprocess.run(["explorer", folder_path], check=True)
+            elif system == "Darwin":  # macOS
+                subprocess.run(["open", folder_path], check=True)
             else:  # Linux
                 subprocess.run(["xdg-open", folder_path], check=True)
+            
+            self.logger.info(f"Folder opened: {folder_path}")
             return True
+            
         except Exception as e:
-            self.logger.error(f"打开文件夹失败: {folder_path} - {e}")
+            self.logger.error(f"Failed to open folder {folder_path}: {e}")
             return False
     
-    def create_folder(self, folder_name: str, parent_path: str = None) -> bool:
-        """创建文件夹"""
-        try:
-            if parent_path is None:
-                parent_path = self.base_path
-            else:
-                parent_path = Path(parent_path)
+    def create_folder(self, folder_path: str) -> bool:
+        """
+        Create a new folder.
+        
+        Args:
+            folder_path (str): Path for the new folder.
             
-            new_folder = parent_path / folder_name
-            new_folder.mkdir(exist_ok=True)
+        Returns:
+            bool: True if the folder exists after the operation, False otherwise.
+            
+        Notes:
+            This operation uses exist_ok=True, so it will not raise an error if the
+            folder already exists.
+        """
+        try:
+            os.makedirs(folder_path, exist_ok=True)
+            self.logger.info(f"Folder created: {folder_path}")
             return True
         except Exception as e:
-            self.logger.error(f"创建文件夹失败: {folder_name} - {e}")
+            self.logger.error(f"Failed to create folder {folder_path}: {e}")
             return False
     
     def delete_file(self, file_path: str) -> bool:
-        """删除文件"""
+        """
+        Delete a file or directory.
+        
+        Args:
+            file_path (str): Path to the file or directory to delete.
+            
+        Returns:
+            bool: True if deletion succeeded, False otherwise.
+            
+        Notes:
+            Directories are removed recursively. Nonexistent paths result in False and a warning log.
+        """
         try:
-            path = Path(file_path)
-            if path.is_file():
-                path.unlink()
-            elif path.is_dir():
-                path.rmdir()
+            if os.path.isfile(file_path):
+                os.remove(file_path)
+                self.logger.info(f"File deleted: {file_path}")
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+                self.logger.info(f"Directory deleted: {file_path}")
+            else:
+                self.logger.warning(f"Path not found: {file_path}")
+                return False
+            
             return True
+            
         except Exception as e:
-            self.logger.error(f"删除文件失败: {file_path} - {e}")
+            self.logger.error(f"Failed to delete {file_path}: {e}")
             return False
     
     def move_file(self, source_path: str, destination_path: str) -> bool:
-        """移动文件"""
-        try:
-            source = Path(source_path)
-            destination = Path(destination_path)
+        """
+        Move a file or directory to a new location.
+        
+        Args:
+            source_path (str): Source file or directory path.
+            destination_path (str): Destination path.
             
-            if source.exists():
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                source.rename(destination)
-                return True
-            return False
+        Returns:
+            bool: True if the move operation succeeded, False otherwise.
+        """
+        try:
+            shutil.move(source_path, destination_path)
+            self.logger.info(f"File moved: {source_path} -> {destination_path}")
+            return True
         except Exception as e:
-            self.logger.error(f"移动文件失败: {source_path} -> {destination_path} - {e}")
+            self.logger.error(f"Failed to move {source_path} to {destination_path}: {e}")
             return False
     
     def copy_file(self, source_path: str, destination_path: str) -> bool:
-        """复制文件"""
-        try:
-            source = Path(source_path)
-            destination = Path(destination_path)
+        """
+        Copy a file or directory to a new location.
+        
+        Args:
+            source_path (str): Source file or directory path.
+            destination_path (str): Destination path.
             
-            if source.exists():
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                if source.is_file():
-                    import shutil
-                    shutil.copy2(source, destination)
-                else:
-                    import shutil
-                    shutil.copytree(source, destination, dirs_exist_ok=True)
-                return True
-            return False
+        Returns:
+            bool: True if the copy operation succeeded, False otherwise.
+            
+        Notes:
+            Directories are copied recursively. Copying a directory to an existing
+            destination may fail depending on the platform and Python version.
+        """
+        try:
+            if os.path.isfile(source_path):
+                shutil.copy2(source_path, destination_path)
+            elif os.path.isdir(source_path):
+                shutil.copytree(source_path, destination_path)
+            else:
+                self.logger.warning(f"Source path not found: {source_path}")
+                return False
+            
+            self.logger.info(f"File copied: {source_path} -> {destination_path}")
+            return True
+            
         except Exception as e:
-            self.logger.error(f"复制文件失败: {source_path} -> {destination_path} - {e}")
+            self.logger.error(f"Failed to copy {source_path} to {destination_path}: {e}")
             return False
     
-    def search_files(self, query: str, directory: str = None, recursive: bool = True) -> List[Dict]:
-        """搜索文件"""
-        if directory is None:
-            directory = self.base_path
-        else:
-            directory = Path(directory)
+    def search_files(self, directory: str, pattern: str) -> List[str]:
+        """
+        Search for files matching a pattern in a directory.
         
-        results = []
-        
+        Args:
+            directory (str): Directory to search in.
+            pattern (str): Search pattern (substring of filename or extension).
+            
+        Returns:
+            List[str]: List of matching file paths, sorted by modification time in
+            descending order (newest first).
+        """
         try:
-            if recursive:
-                for item in directory.rglob("*"):
-                    if query.lower() in item.name.lower():
-                        file_info = {
-                            'name': item.name,
-                            'path': str(item),
-                            'is_dir': item.is_dir(),
-                            'size': self._get_file_size(item) if item.is_file() else 0,
-                            'modified': item.stat().st_mtime,
-                            'extension': item.suffix if item.is_file() else ''
-                        }
-                        results.append(file_info)
-            else:
-                for item in directory.iterdir():
-                    if query.lower() in item.name.lower():
-                        file_info = {
-                            'name': item.name,
-                            'path': str(item),
-                            'is_dir': item.is_dir(),
-                            'size': self._get_file_size(item) if item.is_file() else 0,
-                            'modified': item.stat().st_mtime,
-                            'extension': item.suffix if item.is_file() else ''
-                        }
-                        results.append(file_info)
+            matching_files = []
+            for root, dirs, files in os.walk(directory):
+                for file in files:
+                    if pattern.lower() in file.lower():
+                        matching_files.append(os.path.join(root, file))
             
-            # 按修改时间排序
-            results.sort(key=lambda x: x['modified'], reverse=True)
+            # Sort by modification time
+            matching_files.sort(key=lambda x: os.path.getmtime(x), reverse=True)
+            return matching_files
             
-        except PermissionError:
-            self.logger.warning(f"权限不足，无法搜索目录: {directory}")
         except Exception as e:
-            self.logger.error(f"搜索文件失败: {e}")
-        
-        return results
+            self.logger.error(f"Failed to search in {directory}: {e}")
+            return []
     
     def get_directory_size(self, directory: str) -> int:
-        """获取目录总大小"""
+        """
+        Calculate total size of a directory and its contents.
+        
+        Args:
+            directory (str): Directory path to calculate size for.
+            
+        Returns:
+            int: Total size in bytes for all files found recursively.
+        """
         try:
             total_size = 0
-            directory_path = Path(directory)
-            
-            for item in directory_path.rglob("*"):
-                if item.is_file():
-                    total_size += item.stat().st_size
-            
+            for root, dirs, files in os.walk(directory):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    if os.path.exists(file_path):
+                        total_size += os.path.getsize(file_path)
             return total_size
         except Exception as e:
-            self.logger.error(f"计算目录大小失败: {directory} - {e}")
+            self.logger.error(f"Failed to calculate directory size for {directory}: {e}")
             return 0 

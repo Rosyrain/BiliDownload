@@ -1,359 +1,316 @@
 """
-B站视频下载器核心类
+Bilibili video downloader core module.
+
+This module provides the core functionality for downloading Bilibili videos including:
+- Video information extraction
+- Video and audio stream downloading
+- FFmpeg-based media merging
+- Series video handling
 """
+
 import os
 import re
-import json
 import time
 import random
 import requests
-from typing import Optional, Dict, Any
-from tqdm import tqdm
 import subprocess
-
+from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 from .logger import get_logger
 
 
 class BiliDownloader:
-    """B站视频下载器核心类"""
+    """
+    Core downloader for Bilibili videos.
+    
+    Handles video information extraction, downloading of video/audio streams,
+    and merging using FFmpeg. Supports both single videos and series.
+    """
     
     def __init__(self, config_manager=None):
-        self.user_agents = [
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.1.1 Safari/605.1.15",
-        ]
+        """
+        Initialize the BiliDownloader with configuration manager.
+        
+        Args:
+            config_manager: Configuration manager instance for settings
+        """
+        self.config_manager = config_manager
+        self.logger = get_logger(__name__)
         self.session = requests.Session()
         self.session.headers.update({
-            'User-Agent': random.choice(self.user_agents)
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         })
-        self.config_manager = config_manager
-        self.logger = get_logger("BiliDownloader")
-        self.logger.info("B站下载器初始化完成")
     
-    def get_video_info(self, url: str, cookie: str = "") -> Optional[Dict[str, Any]]:
-        """获取视频信息"""
-        try:
-            self.logger.info(f"开始获取视频信息: {url}")
-            
-            if cookie:
-                self.session.headers.update({'Cookie': cookie})
-                self.logger.debug("已设置Cookie")
-            
-            # 处理分P视频
-            page_count = 1
-            new_url = re.sub(r"\?.*", "?p=1", url)
-            
-            while True:
-                new_url = re.sub(r"p=\d+", f"p={page_count}", new_url)
-                self.logger.debug(f"尝试获取第{page_count}P: {new_url}")
-                
-                resp = self.session.get(new_url)
-                if resp.status_code != 200:
-                    self.logger.warning(f"第{page_count}P请求失败，状态码: {resp.status_code}")
-                    break
-                
-                page_content = resp.text
-                
-                # 提取视频标题
-                title_match = re.search(r'<title data-vue-meta="true">(?P<title>.*?)</title>', page_content)
-                if not title_match:
-                    self.logger.warning(f"第{page_count}P无法提取标题")
-                    break
-                
-                title = title_match.group('title')
-                self.logger.info(f"获取到标题: {title}")
-                
-                # 提取播放信息
-                playinfo_match = re.search(r'<script>window.__playinfo__=(?P<data>.*?)</script>', page_content)
-                if not playinfo_match:
-                    self.logger.warning(f"第{page_count}P无法提取播放信息")
-                    break
-                
-                try:
-                    playinfo = json.loads(playinfo_match.group('data'))
-                    video_url = playinfo['data']['dash']['video'][0]['baseUrl']
-                    audio_url = playinfo['data']['dash']['audio'][0]['baseUrl']
-                    
-                    self.logger.info(f"成功提取第{page_count}P的播放信息")
-                    
-                    return {
-                        'title': title,
-                        'video_url': video_url,
-                        'audio_url': audio_url,
-                        'page': page_count,
-                        'url': new_url
-                    }
-                except (json.JSONDecodeError, KeyError) as e:
-                    self.logger.warning(f"第{page_count}P播放信息解析失败: {e}")
-                    break
-                
-                page_count += 1
-                
-        except Exception as e:
-            self.logger.error(f"获取视频信息失败: {e}")
-            return None
+    def get_video_info(self, url: str) -> Dict[str, any]:
+        """
+        Extract video information from Bilibili URL.
         
-        return None
-    
-    def download_video(self, video_info: Dict[str, Any], save_path: str, 
-                      ffmpeg_path: str = None, progress_callback=None) -> bool:
-        """下载视频"""
+        Args:
+            url (str): Bilibili video URL
+            
+        Returns:
+            Dict[str, any]: Video information including title, duration, etc.
+        """
         try:
-            # 如果没有提供FFmpeg路径，从配置中获取
-            if not ffmpeg_path and hasattr(self, 'config_manager') and self.config_manager:
-                ffmpeg_path = self.config_manager.get_ffmpeg_path()
-                self.logger.info(f"从配置中获取FFmpeg路径: {ffmpeg_path}")
+            # Handle multi-part videos
+            if '?p=' in url:
+                url = url.split('?p=')[0]
             
-            title = video_info['title']
-            video_url = video_info['video_url']
-            audio_url = video_info['audio_url']
-            page = video_info['page']
+            response = self.session.get(url)
+            response.raise_for_status()
             
-            self.logger.info(f"开始下载视频: {title} (第{page}P)")
-            self.logger.download_info(f"开始下载: {title} (第{page}P)")
+            # Extract video title
+            title_match = re.search(r'<title[^>]*>([^<]+)</title>', response.text)
+            title = title_match.group(1).strip() if title_match else "Unknown Title"
             
-            # 创建临时文件路径
-            video_temp = os.path.join(save_path, 'video_temp.mp4')
-            audio_temp = os.path.join(save_path, 'audio_temp.mp3')
-            final_path = os.path.join(save_path, f'{title}_P{page}.mp4')
+            # Extract playback information
+            playinfo_match = re.search(r'window\.__playinfo__=({.*?})</script>', response.text)
+            if playinfo_match:
+                import json
+                playinfo = json.loads(playinfo_match.group(1))
+                return {
+                    'title': title,
+                    'playinfo': playinfo,
+                    'url': url
+                }
             
-            self.logger.debug(f"临时文件路径: 视频={video_temp}, 音频={audio_temp}")
-            self.logger.debug(f"最终文件路径: {final_path}")
+            return {
+                'title': title,
+                'playinfo': None,
+                'url': url
+            }
             
-            # 下载视频流
-            if progress_callback:
-                progress_callback(0, "开始下载视频流...")
+        except Exception as e:
+            self.logger.error(f"Failed to get video info from {url}: {e}")
+            return {
+                'title': "Error",
+                'playinfo': None,
+                'url': url
+            }
+    
+    def download_video(self, url: str, save_path: str, ffmpeg_path: str = None) -> bool:
+        """
+        Download a single Bilibili video.
+        
+        Args:
+            url (str): Bilibili video URL
+            save_path (str): Path to save the downloaded video
+            ffmpeg_path (str, optional): Path to FFmpeg executable
             
-            self.logger.info("开始下载视频流...")
-            video_success = self._download_stream(video_url, video_temp, progress_callback, "视频")
+        Returns:
+            bool: True if download successful, False otherwise
+        """
+        try:
+            # If FFmpeg path not provided, get from config
+            if not ffmpeg_path and self.config_manager:
+                ffmpeg_path = self.config_manager.get('DEFAULT', 'ffmpeg_path')
             
-            if not video_success:
-                self.logger.error("视频流下载失败")
+            video_info = self.get_video_info(url)
+            if not video_info['playinfo']:
+                self.logger.error("Failed to extract video information")
                 return False
             
-            # 下载音频流
-            if progress_callback:
-                progress_callback(50, "开始下载音频流...")
+            # Create temporary file paths
+            video_temp = save_path + '.video.tmp'
+            audio_temp = save_path + '.audio.tmp'
             
-            self.logger.info("开始下载音频流...")
-            audio_success = self._download_stream(audio_url, audio_temp, progress_callback, "音频")
+            # Download video stream
+            video_url = video_info['playinfo']['data']['dash']['video'][0]['baseUrl']
+            self._download_stream(video_url, video_temp)
             
-            if not audio_success:
-                self.logger.error("音频流下载失败")
-                return False
+            # Download audio stream
+            audio_url = video_info['playinfo']['data']['dash']['audio'][0]['baseUrl']
+            self._download_stream(audio_url, audio_temp)
             
-            # 合并音视频
-            if progress_callback:
-                progress_callback(90, "正在合并音视频...")
+            # Merge audio and video
+            success = self._merge_audio_video(video_temp, audio_temp, save_path, ffmpeg_path)
             
-            self.logger.info("开始合并音视频...")
-            success = self._merge_audio_video(video_temp, audio_temp, final_path, ffmpeg_path)
-            
-            if success:
-                self.logger.info(f"视频合并成功: {final_path}")
-                self.logger.download_info(f"下载完成: {title} (第{page}P)")
-            else:
-                self.logger.error("视频合并失败")
-            
-            # 清理临时文件
-            if os.path.exists(video_temp):
-                os.remove(video_temp)
-                self.logger.debug("已清理临时视频文件")
-            if os.path.exists(audio_temp):
-                os.remove(audio_temp)
-                self.logger.debug("已清理临时音频文件")
-            
-            if progress_callback:
-                progress_callback(100, "下载完成！")
+            # Clean up temporary files
+            for temp_file in [video_temp, audio_temp]:
+                if os.path.exists(temp_file):
+                    os.remove(temp_file)
             
             return success
             
         except Exception as e:
-            self.logger.error(f"下载失败: {e}")
+            self.logger.error(f"Failed to download video {url}: {e}")
             return False
     
-    def _download_stream(self, url: str, file_path: str, 
-                        progress_callback=None, stream_type: str = "文件") -> bool:
-        """下载流文件"""
+    def _download_stream(self, url: str, save_path: str) -> bool:
+        """
+        Download a single stream (video or audio).
+        
+        Args:
+            url (str): Stream URL to download
+            save_path (str): Path to save the downloaded stream
+            
+        Returns:
+            bool: True if download successful, False otherwise
+        """
         try:
-            headers = {
-                'User-Agent': random.choice(self.user_agents),
-                'Referer': 'https://www.bilibili.com/'
-            }
+            response = self.session.get(url, stream=True)
+            response.raise_for_status()
             
-            response = self.session.get(url, headers=headers, stream=True)
-            total_size = int(response.headers.get('content-length', 0))
-            
-            with open(file_path, 'wb') as f:
-                downloaded = 0
+            with open(save_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192):
                     if chunk:
                         f.write(chunk)
-                        downloaded += len(chunk)
-                        
-                        if progress_callback and total_size > 0:
-                            progress = int((downloaded / total_size) * 100)
-                            progress_callback(progress, f"下载{stream_type}中... {downloaded}/{total_size} bytes")
             
             return True
             
         except Exception as e:
-            self.logger.error(f"下载{stream_type}失败: {e}")
+            self.logger.error(f"Failed to download stream to {save_path}: {e}")
             return False
     
-    def _merge_audio_video(self, video_path: str, audio_path: str, 
-                           output_path: str, ffmpeg_path: str) -> bool:
-        """合并音视频"""
+    def _merge_audio_video(self, video_path: str, audio_path: str, output_path: str, ffmpeg_path: str) -> bool:
+        """
+        Merge video and audio streams using FFmpeg.
+        
+        Args:
+            video_path (str): Path to video file
+            audio_path (str): Path to audio file
+            output_path (str): Path for merged output file
+            ffmpeg_path (str): Path to FFmpeg executable
+            
+        Returns:
+            bool: True if merge successful, False otherwise
+        """
         try:
-            # 验证FFmpeg路径
-            if not ffmpeg_path or not ffmpeg_path.strip():
-                self.logger.error("FFmpeg路径未设置，无法合并音视频")
+            # Validate FFmpeg path
+            if not ffmpeg_path:
+                self.logger.error("FFmpeg path not provided")
                 return False
             
             if not os.path.exists(ffmpeg_path):
-                self.logger.error(f"FFmpeg路径不存在: {ffmpeg_path}")
+                self.logger.error(f"FFmpeg not found at: {ffmpeg_path}")
                 return False
             
-            # 检查FFmpeg是否可执行
+            # Check if FFmpeg is executable
             if not os.access(ffmpeg_path, os.X_OK):
-                self.logger.error(f"FFmpeg文件不可执行: {ffmpeg_path}")
+                self.logger.error(f"FFmpeg not executable at: {ffmpeg_path}")
                 return False
-            
-            self.logger.info(f"使用FFmpeg路径: {ffmpeg_path}")
             
             cmd = [
                 ffmpeg_path,
                 '-i', video_path,
                 '-i', audio_path,
                 '-c:v', 'copy',
-                '-c:a', 'copy',
-                '-y',  # 覆盖输出文件
+                '-c:a', 'aac',
+                '-strict', 'experimental',
+                '-y',  # Overwrite output file
                 output_path
             ]
             
             result = subprocess.run(cmd, capture_output=True, text=True)
             
             if result.returncode == 0:
-                self.logger.info("FFmpeg合并成功")
+                self.logger.info(f"Successfully merged video and audio to: {output_path}")
                 return True
             else:
-                self.logger.error(f"FFmpeg合并失败: {result.stderr}")
+                self.logger.error(f"FFmpeg merge failed: {result.stderr}")
                 return False
                 
         except Exception as e:
-            self.logger.error(f"合并音视频失败: {e}")
+            self.logger.error(f"Failed to merge audio and video: {e}")
             return False
     
-    def download_series(self, base_url: str, save_path: str, ffmpeg_path: str = None,
-                        cookie: str = "", progress_callback=None, category_name: str = "default") -> bool:
-        """下载系列视频"""
+    def download_series(self, series_url: str, save_path: str, ffmpeg_path: str = None) -> bool:
+        """
+        Download a series of videos from Bilibili.
+        
+        Args:
+            series_url (str): URL of the first video in the series
+            save_path (str): Base path to save the series
+            ffmpeg_path (str, optional): Path to FFmpeg executable
+            
+        Returns:
+            bool: True if series download successful, False otherwise
+        """
         try:
-            # 如果没有提供FFmpeg路径，从配置中获取
-            if not ffmpeg_path and hasattr(self, 'config_manager') and self.config_manager:
-                ffmpeg_path = self.config_manager.get_ffmpeg_path()
-                self.logger.info(f"从配置中获取FFmpeg路径: {ffmpeg_path}")
+            # If FFmpeg path not provided, get from config
+            if not ffmpeg_path and self.config_manager:
+                ffmpeg_path = self.config_manager.get('DEFAULT', 'ffmpeg_path')
             
-            self.logger.info(f"开始下载系列视频: {base_url}")
-            self.logger.info(f"分类: {category_name}, 保存路径: {save_path}")
-            
-            # 获取第一个视频信息来确定系列名称
-            first_video_info = self.get_video_info(base_url, cookie)
-            if not first_video_info:
-                self.logger.error("无法获取系列视频信息")
+            # Get first video info to determine series name
+            first_video_info = self.get_video_info(series_url)
+            if not first_video_info['playinfo']:
+                self.logger.error("Failed to extract first video information")
                 return False
             
-            # 提取系列名称（从第一个视频标题中提取）
+            # Extract series name from first video title
             series_title = self._extract_series_title(first_video_info['title'])
-            self.logger.info(f"系列名称: {series_title}")
             
-            # 创建系列文件夹
-            if hasattr(self, 'config_manager') and self.config_manager:
-                # 使用配置管理器创建系列文件夹
-                series_save_path = self.config_manager.get_series_download_path(category_name, series_title)
+            # Create series folder
+            if self.config_manager:
+                # Use config manager to create series folder
+                series_path = self.config_manager.get_series_download_path(
+                    self.config_manager.get('DEFAULT', 'default_category'),
+                    series_title
+                )
             else:
-                # 直接在保存路径下创建系列文件夹
-                series_save_path = os.path.join(save_path, series_title)
-                os.makedirs(series_save_path, exist_ok=True)
+                # Create series folder directly in save path
+                series_path = os.path.join(save_path, series_title)
+                os.makedirs(series_path, exist_ok=True)
             
-            self.logger.info(f"系列保存路径: {series_save_path}")
+            # Count total pages first
+            base_url = series_url.split('?')[0]
+            total_pages = 1
             
-            page = 1
-            success_count = 0
-            total_pages = 0
+            # Try to find total page count
+            try:
+                response = self.session.get(series_url)
+                page_match = re.search(r'共(\d+)P', response.text)
+                if page_match:
+                    total_pages = int(page_match.group(1))
+            except:
+                pass
             
-            # 先统计总页数
-            while True:
-                url = re.sub(r"p=\d+", f"p={page}", base_url)
-                if "?" not in url:
-                    url += f"?p={page}"
-                
-                video_info = self.get_video_info(url, cookie)
-                if not video_info:
-                    break
-                total_pages = page
-                page += 1
-                time.sleep(0.5)  # 避免请求过快
+            self.logger.info(f"Starting series download: {series_title} ({total_pages} parts)")
             
-            self.logger.info(f"系列总页数: {total_pages}")
-            
-            # 开始下载
-            page = 1
-            while page <= total_pages:
-                url = re.sub(r"p=\d+", f"p={page}", base_url)
-                if "?" not in url:
-                    url += f"?p={page}"
+            # Start downloading
+            for page in range(1, total_pages + 1):
+                page_url = f"{base_url}?p={page}"
+                page_title = f"{series_title}_P{page:02d}"
+                page_path = os.path.join(series_path, f"{page_title}.mp4")
                 
-                video_info = self.get_video_info(url, cookie)
-                if not video_info:
-                    self.logger.warning(f"第{page}P获取失败，跳过")
-                    page += 1
-                    continue
+                self.logger.info(f"Downloading part {page}/{total_pages}: {page_title}")
                 
-                if progress_callback:
-                    progress_callback(0, f"开始下载第{page}P: {video_info['title']}")
-                
-                self.logger.info(f"下载第{page}P: {video_info['title']}")
-                
-                # 下载到系列文件夹
-                success = self.download_video(video_info, series_save_path, ffmpeg_path, progress_callback)
-                if success:
-                    success_count += 1
-                    self.logger.info(f"第{page}P下载成功")
+                if self.download_video(page_url, page_path, ffmpeg_path):
+                    self.logger.info(f"Successfully downloaded part {page}")
                 else:
-                    self.logger.warning(f"第{page}P下载失败")
+                    self.logger.error(f"Failed to download part {page}")
                 
-                page += 1
-                time.sleep(random.uniform(1, 3))  # 避免请求过快
+                # Avoid requesting too fast
+                time.sleep(random.uniform(1, 3))
             
-            self.logger.info(f"系列下载完成，成功: {success_count}/{total_pages}")
-            return success_count > 0
+            return True
             
         except Exception as e:
-            self.logger.error(f"系列下载异常: {e}")
+            self.logger.error(f"Failed to download series {series_url}: {e}")
             return False
     
-    def _extract_series_title(self, video_title: str) -> str:
-        """从视频标题中提取系列名称"""
-        try:
-            # 移除常见的分P标识
-            series_title = re.sub(r'[Pp]art\s*\d+', '', video_title)
-            series_title = re.sub(r'第\s*\d+[Pp]', '', series_title)
-            series_title = re.sub(r'[Pp]\s*\d+', '', series_title)
-            series_title = re.sub(r'\(\d+\)', '', series_title)
-            series_title = re.sub(r'【\d+】', '', series_title)
+    def _extract_series_title(self, title: str) -> str:
+        """
+        Extract series name from video title.
+        
+        Args:
+            title (str): Full video title
             
-            # 清理多余的空格和标点
-            series_title = re.sub(r'\s+', ' ', series_title)
-            series_title = series_title.strip(' -_()【】')
-            
-            # 如果清理后为空，返回原标题
-            if not series_title:
-                return video_title
-            
-            return series_title
-            
-        except Exception as e:
-            self.logger.warning(f"提取系列名称失败: {e}")
-            return video_title 
+        Returns:
+            str: Extracted series name
+        """
+        # Remove common part indicators
+        title = re.sub(r'[Pp]art\s*\d+', '', title)
+        title = re.sub(r'第\s*\d+[话集]', '', title)
+        title = re.sub(r'[Pp]\s*\d+', '', title)
+        
+        # Clean up extra spaces and punctuation
+        title = re.sub(r'\s+', ' ', title)
+        title = re.sub(r'[^\w\s\u4e00-\u9fff]', '', title)
+        title = title.strip()
+        
+        # If cleaned title is empty, return original
+        if not title:
+            return title
+        
+        return title 

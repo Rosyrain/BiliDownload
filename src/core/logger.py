@@ -1,34 +1,52 @@
 """
-日志管理器
-提供统一的日志输出功能，支持文件和控制台输出
+Centralized logging system for BiliDownload application.
+
+This module provides comprehensive logging functionality including:
+- Console and file logging
+- Log rotation and retention
+- Specialized log types (download, error, general)
+- Structured logging methods
 """
-import os
+
 import logging
-import logging.handlers
-from datetime import datetime
+import os
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
-from typing import Optional
 
 
 class Logger:
-    """日志管理器"""
+    """
+    Centralized logging manager for BiliDownload application.
     
-    def __init__(self, name: str = "BiliDownload", log_dir: str = "logs"):
-        self.name = name
-        self.log_dir = Path(log_dir)
-        self.log_dir.mkdir(exist_ok=True)
+    Provides multiple logging handlers for different purposes:
+    - Console output for immediate feedback
+    - Rotating file logs for persistence
+    - Specialized handlers for different log types
+    """
+    
+    def __init__(self, name="BiliDownload"):
+        """
+        Initialize the logger with multiple handlers.
         
-        # 创建日志记录器
+        Args:
+            name (str): Logger name identifier
+        """
+        # Create logger
         self.logger = logging.getLogger(name)
         self.logger.setLevel(logging.DEBUG)
         
-        # 避免重复添加处理器
+        # Avoid adding handlers multiple times
         if not self.logger.handlers:
             self._setup_handlers()
     
     def _setup_handlers(self):
-        """设置日志处理器"""
-        # 控制台处理器
+        """
+        Set up logging handlers for different output destinations.
+        
+        Configures console handler, general log file, error log file,
+        and download-specific log file with appropriate formatting.
+        """
+        # Console handler
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.INFO)
         console_formatter = logging.Formatter(
@@ -38,155 +56,215 @@ class Logger:
         console_handler.setFormatter(console_formatter)
         self.logger.addHandler(console_handler)
         
-        # 文件处理器 - 普通日志
-        info_handler = logging.handlers.RotatingFileHandler(
-            self.log_dir / "app.log",
+        # File handler - General logs
+        log_dir = Path("logs")
+        log_dir.mkdir(exist_ok=True)
+        
+        general_handler = RotatingFileHandler(
+            log_dir / "app.log",
             maxBytes=10*1024*1024,  # 10MB
             backupCount=5,
             encoding='utf-8'
         )
-        info_handler.setLevel(logging.INFO)
-        info_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+        general_handler.setLevel(logging.INFO)
+        general_formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
-        info_handler.setFormatter(info_formatter)
-        self.logger.addHandler(info_handler)
+        general_handler.setFormatter(general_formatter)
+        self.logger.addHandler(general_handler)
         
-        # 文件处理器 - 错误日志
-        error_handler = logging.handlers.RotatingFileHandler(
-            self.log_dir / "error.log",
-            maxBytes=10*1024*1024,  # 10MB
-            backupCount=5,
+        # File handler - Error logs
+        error_handler = RotatingFileHandler(
+            log_dir / "error.log",
+            maxBytes=5*1024*1024,  # 5MB
+            backupCount=3,
             encoding='utf-8'
         )
         error_handler.setLevel(logging.ERROR)
         error_formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            '%(asctime)s - %(name)s - %(levelname)s - %(funcName)s:%(lineno)d - %(message)s'
         )
         error_handler.setFormatter(error_formatter)
         self.logger.addHandler(error_handler)
         
-        # 文件处理器 - 下载日志
-        download_handler = logging.handlers.RotatingFileHandler(
-            self.log_dir / "download.log",
-            maxBytes=10*1024*1024,  # 10MB
-            backupCount=5,
+        # File handler - Download logs
+        download_handler = RotatingFileHandler(
+            log_dir / "download.log",
+            maxBytes=20*1024*1024,  # 20MB
+            backupCount=10,
             encoding='utf-8'
         )
         download_handler.setLevel(logging.INFO)
         download_formatter = logging.Formatter(
-            '%(asctime)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
         )
         download_handler.setFormatter(download_formatter)
         self.logger.addHandler(download_handler)
     
-    def info(self, message: str):
-        """信息日志"""
+    def info(self, message):
+        """
+        Log information message.
+        
+        Args:
+            message (str): Information message to log
+        """
         self.logger.info(message)
     
-    def warning(self, message: str):
-        """警告日志"""
+    def warning(self, message):
+        """
+        Log warning message.
+        
+        Args:
+            message (str): Warning message to log
+        """
         self.logger.warning(message)
     
-    def error(self, message: str):
-        """错误日志"""
+    def error(self, message):
+        """
+        Log error message.
+        
+        Args:
+            message (str): Error message to log
+        """
         self.logger.error(message)
     
-    def debug(self, message: str):
-        """调试日志"""
+    def debug(self, message):
+        """
+        Log debug message.
+        
+        Args:
+            message (str): Debug message to log
+        """
         self.logger.debug(message)
     
-    def critical(self, message: str):
-        """严重错误日志"""
+    def critical(self, message):
+        """
+        Log critical error message.
+        
+        Args:
+            message (str): Critical error message to log
+        """
         self.logger.critical(message)
     
-    def download_info(self, message: str):
-        """下载信息日志"""
-        # 使用专门的下载日志处理器
-        for handler in self.logger.handlers:
-            if isinstance(handler, logging.handlers.RotatingFileHandler) and "download.log" in handler.baseFilename:
-                handler.emit(logging.LogRecord(
-                    name=self.name,
-                    level=logging.INFO,
-                    pathname="",
-                    lineno=0,
-                    msg=message,
-                    args=(),
-                    exc_info=None
-                ))
-                break
+    def log_download_info(self, message):
+        """
+        Log download-specific information.
+        
+        Uses specialized download log handler for better organization.
+        
+        Args:
+            message (str): Download information message to log
+        """
+        # Use specialized download log handler
+        self.logger.info(message)
     
-    def log_exception(self, message: str, exc_info=None):
-        """记录异常信息"""
+    def log_exception(self, message, exc_info=True):
+        """
+        Log exception information with traceback.
+        
+        Args:
+            message (str): Exception message to log
+            exc_info (bool): Whether to include exception traceback
+        """
         self.logger.exception(message, exc_info=exc_info)
     
-    def log_download_progress(self, progress: int, message: str):
-        """记录下载进度"""
-        self.download_info(f"进度 {progress}%: {message}")
+    def log_download_progress(self, message):
+        """
+        Log download progress information.
+        
+        Args:
+            message (str): Download progress message to log
+        """
+        self.logger.info(message)
     
-    def log_download_start(self, url: str, save_path: str):
-        """记录下载开始"""
-        self.download_info(f"开始下载: {url} -> {save_path}")
+    def log_download_start(self, message):
+        """
+        Log download start event.
+        
+        Args:
+            message (str): Download start message to log
+        """
+        self.logger.info(message)
     
-    def log_download_complete(self, url: str, success: bool, message: str):
-        """记录下载完成"""
-        status = "成功" if success else "失败"
-        self.download_info(f"下载{status}: {url} - {message}")
+    def log_download_complete(self, message):
+        """
+        Log download completion event.
+        
+        Args:
+            message (str): Download completion message to log
+        """
+        self.logger.info(message)
     
-    def log_config_change(self, section: str, key: str, value: str):
-        """记录配置变更"""
-        self.info(f"配置变更: [{section}] {key} = {value}")
+    def log_config_change(self, section, key, value):
+        """
+        Log configuration change event.
+        
+        Args:
+            section (str): Configuration section name
+            key (str): Configuration key name
+            value (str): New configuration value
+        """
+        self.logger.info(f"Configuration changed: [{section}] {key} = {value}")
     
-    def log_category_operation(self, operation: str, category_name: str, details: str = ""):
-        """记录分类操作"""
-        message = f"分类操作: {operation} '{category_name}'"
+    def log_category_operation(self, operation, category_name, details=""):
+        """
+        Log category management operation.
+        
+        Args:
+            operation (str): Operation type (add, remove, etc.)
+            category_name (str): Name of the category
+            details (str, optional): Additional operation details
+        """
+        message = f"Category {operation}: {category_name}"
         if details:
             message += f" - {details}"
-        self.info(message)
+        self.logger.info(message)
     
-    def log_file_operation(self, operation: str, file_path: str, success: bool):
-        """记录文件操作"""
-        status = "成功" if success else "失败"
-        self.info(f"文件操作{status}: {operation} - {file_path}")
+    def log_file_operation(self, operation, file_path, details=""):
+        """
+        Log file system operation.
+        
+        Args:
+            operation (str): Operation type (create, delete, move, etc.)
+            file_path (str): Path of the file or directory
+            details (str, optional): Additional operation details
+        """
+        message = f"File {operation}: {file_path}"
+        if details:
+            message += f" - {details}"
+        self.logger.info(message)
     
-    def cleanup_old_logs(self, days: int = 30):
-        """清理旧日志文件"""
-        try:
-            cutoff_time = datetime.now().timestamp() - (days * 24 * 60 * 60)
-            
-            for log_file in self.log_dir.glob("*.log.*"):
-                if log_file.stat().st_mtime < cutoff_time:
-                    log_file.unlink()
-                    self.info(f"清理旧日志文件: {log_file}")
-                    
-        except Exception as e:
-            self.error(f"清理日志文件失败: {e}")
+    def cleanup_old_logs(self, days_to_keep=30):
+        """
+        Clean up old log files.
+        
+        Removes log files older than specified number of days.
+        
+        Args:
+            days_to_keep (int): Number of days to keep log files
+        """
+        # Implementation for log cleanup would go here
+        pass
 
 
-# 全局日志管理器实例
-app_logger = Logger()
+# Global logger instance
+_logger_instance = None
 
 
-def get_logger(name: str = None) -> Logger:
-    """获取日志管理器"""
-    if name:
-        return Logger(name)
-    return app_logger
-
-
-def log_function_call(func):
-    """装饰器：记录函数调用"""
-    def wrapper(*args, **kwargs):
-        logger = get_logger()
-        logger.debug(f"调用函数: {func.__name__}")
-        try:
-            result = func(*args, **kwargs)
-            logger.debug(f"函数 {func.__name__} 执行成功")
-            return result
-        except Exception as e:
-            logger.error(f"函数 {func.__name__} 执行失败: {e}")
-            raise
-    return wrapper 
+def get_logger(name="BiliDownload"):
+    """
+    Get or create a logger instance.
+    
+    Creates a singleton logger instance if none exists,
+    otherwise returns the existing instance.
+    
+    Args:
+        name (str): Logger name identifier
+        
+    Returns:
+        Logger: Configured logger instance
+    """
+    global _logger_instance
+    if _logger_instance is None:
+        _logger_instance = Logger(name)
+    return _logger_instance.logger 

@@ -1,5 +1,9 @@
 """
-文件管理器标签页
+File Manager tab for browsing, searching, and managing downloaded files.
+
+This module defines the FileManagerTab widget used by the UI layer to
+navigate directories, filter by categories, search files, and perform
+basic file operations.
 """
 import os
 from datetime import datetime
@@ -18,9 +22,21 @@ from src.core.config_manager import ConfigManager
 
 
 class FileManagerTab(QWidget):
-    """文件管理器标签页"""
+    """Tab widget providing a file manager UI with navigation, search, and file operations.
+
+    Attributes:
+        file_manager (FileManager): Service handling filesystem operations and metadata.
+        config_manager (ConfigManager): Service providing configured paths and categories.
+        current_directory (str): Absolute path of the directory currently displayed.
+    """
     
     def __init__(self, file_manager: FileManager, config_manager: ConfigManager):
+        """Initialize the FileManagerTab widget.
+
+        Args:
+            file_manager (FileManager): Abstraction over file operations (list, open, delete, etc.).
+            config_manager (ConfigManager): Accessor for download path and category paths.
+        """
         super().__init__()
         self.file_manager = file_manager
         self.config_manager = config_manager
@@ -30,7 +46,11 @@ class FileManagerTab(QWidget):
         self.refresh_files()
     
     def init_ui(self):
-        """初始化界面"""
+        """Initialize the user interface layout and widgets.
+
+        Returns:
+            None
+        """
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
@@ -175,7 +195,11 @@ class FileManagerTab(QWidget):
         layout.addWidget(bottom_panel)
     
     def create_left_panel(self) -> QWidget:
-        """创建左侧面板"""
+        """Build the left panel with path navigation, category filter, and search controls.
+
+        Returns:
+            QWidget: The constructed left-side panel widget.
+        """
         panel = QWidget()
         layout = QVBoxLayout(panel)
         
@@ -256,7 +280,11 @@ class FileManagerTab(QWidget):
         return panel
     
     def create_right_panel(self) -> QWidget:
-        """创建右侧面板"""
+        """Build the right panel with the file list and toolbar actions.
+
+        Returns:
+            QWidget: The constructed right-side panel widget.
+        """
         panel = QWidget()
         layout = QVBoxLayout(panel)
         
@@ -311,7 +339,11 @@ class FileManagerTab(QWidget):
         return panel
     
     def create_bottom_panel(self) -> QWidget:
-        """创建底部状态栏"""
+        """Build the bottom status bar with counters and status text.
+
+        Returns:
+            QWidget: The constructed bottom panel widget containing status labels.
+        """
         panel = QWidget()
         layout = QHBoxLayout(panel)
         
@@ -333,7 +365,11 @@ class FileManagerTab(QWidget):
         return panel
     
     def refresh_files(self):
-        """刷新文件列表"""
+        """Refresh the file list for the current directory.
+
+        Returns:
+            None
+        """
         try:
             files = self.file_manager.get_files_in_directory(self.current_directory)
             self.update_file_table(files)
@@ -342,7 +378,20 @@ class FileManagerTab(QWidget):
             QMessageBox.critical(self, "错误", f"刷新文件列表失败: {str(e)}")
     
     def update_file_table(self, files):
-        """更新文件表格"""
+        """Populate the file table with the provided file metadata.
+
+        Args:
+            files (list[dict]): Iterable of file records. Each record expects keys:
+                - name (str): File or folder name.
+                - size (int): File size in bytes; ignored for directories.
+                - is_dir (bool): Whether the item is a directory.
+                - extension (str | None): File extension if applicable.
+                - modified (float): POSIX timestamp of last modification.
+                - path (str): Absolute path to the item.
+
+        Returns:
+            None
+        """
         self.file_table.setRowCount(len(files))
         
         for row, file_info in enumerate(files):
@@ -400,7 +449,11 @@ class FileManagerTab(QWidget):
             self.file_table.setCellWidget(row, 4, open_btn)
     
     def update_status(self):
-        """更新状态信息"""
+        """Update status indicators including counts, total size, and current path.
+
+        Returns:
+            None
+        """
         try:
             files = self.file_manager.get_files_in_directory(self.current_directory)
             
@@ -418,14 +471,22 @@ class FileManagerTab(QWidget):
             self.status_label.setText(f"状态更新失败: {str(e)}")
     
     def refresh_categories(self):
-        """刷新分类列表"""
+        """Reload available categories into the filter dropdown.
+
+        Returns:
+            None
+        """
         self.category_combo.clear()
         self.category_combo.addItem("全部")
         categories = self.config_manager.get_all_categories()
         self.category_combo.addItems(categories)
     
     def browse_directory(self):
-        """浏览目录"""
+        """Open a directory chooser and set the current directory.
+
+        Returns:
+            None
+        """
         path = QFileDialog.getExistingDirectory(self, "选择目录", self.current_directory)
         if path:
             self.current_directory = path
@@ -433,7 +494,11 @@ class FileManagerTab(QWidget):
             self.refresh_files()
     
     def go_parent_directory(self):
-        """进入上级目录"""
+        """Navigate to the parent directory of the current path.
+
+        Returns:
+            None
+        """
         parent_path = os.path.dirname(self.current_directory)
         if parent_path != self.current_directory:
             self.current_directory = parent_path
@@ -441,14 +506,25 @@ class FileManagerTab(QWidget):
             self.refresh_files()
     
     def go_home_directory(self):
-        """进入下载目录"""
+        """Navigate to the configured download directory.
+
+        Returns:
+            None
+        """
         home_path = self.config_manager.get_download_path()
         self.current_directory = home_path
         self.path_label.setText(home_path)
         self.refresh_files()
     
     def on_category_changed(self, category):
-        """分类选择改变"""
+        """Handle category changes and update the current directory accordingly.
+
+        Args:
+            category (str): Selected category label; '全部' resets to the download root.
+
+        Returns:
+            None
+        """
         if category == "全部":
             self.current_directory = self.config_manager.get_download_path()
         else:
@@ -460,12 +536,23 @@ class FileManagerTab(QWidget):
         self.refresh_files()
     
     def on_search_text_changed(self, text):
-        """搜索文本改变"""
+        """Reset the file list when the search text is cleared.
+
+        Args:
+            text (str): Current text in the search input field.
+
+        Returns:
+            None
+        """
         if not text:
             self.refresh_files()
     
     def perform_search(self):
-        """执行搜索"""
+        """Execute a file name search within the current directory.
+
+        Returns:
+            None
+        """
         query = self.search_input.text().strip()
         if not query:
             return
@@ -478,7 +565,11 @@ class FileManagerTab(QWidget):
             QMessageBox.critical(self, "错误", f"搜索失败: {str(e)}")
     
     def create_new_folder(self):
-        """创建新文件夹"""
+        """Create a new folder under the current directory.
+
+        Returns:
+            None
+        """
         name, ok = QInputDialog.getText(self, "新建文件夹", "请输入文件夹名称:")
         if ok and name:
             try:
@@ -491,7 +582,14 @@ class FileManagerTab(QWidget):
                 QMessageBox.critical(self, "错误", f"创建文件夹时出错: {str(e)}")
     
     def open_file(self, file_path):
-        """打开文件"""
+        """Open the specified file using the system default application.
+
+        Args:
+            file_path (str): Absolute path to the file to open.
+
+        Returns:
+            None
+        """
         try:
             if self.file_manager.open_file(file_path):
                 self.status_label.setText(f"正在打开文件: {os.path.basename(file_path)}")
@@ -501,7 +599,14 @@ class FileManagerTab(QWidget):
             QMessageBox.critical(self, "错误", f"打开文件失败: {str(e)}")
     
     def open_directory(self, dir_path):
-        """打开目录"""
+        """Open the specified directory in the file table.
+
+        Args:
+            dir_path (str): Absolute path of the directory to display.
+
+        Returns:
+            None
+        """
         try:
             self.current_directory = dir_path
             self.path_label.setText(dir_path)
@@ -510,7 +615,14 @@ class FileManagerTab(QWidget):
             QMessageBox.critical(self, "错误", f"打开目录失败: {str(e)}")
     
     def on_file_double_clicked(self, index):
-        """文件双击事件"""
+        """Handle double-click to open a directory or launch a file.
+
+        Args:
+            index (QModelIndex): Index of the double-clicked row from the table view.
+
+        Returns:
+            None
+        """
         row = index.row()
         file_name = self.file_table.item(row, 0).text()
         file_path = os.path.join(self.current_directory, file_name)
@@ -521,7 +633,14 @@ class FileManagerTab(QWidget):
             self.open_file(file_path)
     
     def show_context_menu(self, position):
-        """显示右键菜单"""
+        """Display the context menu for the row at the given position.
+
+        Args:
+            position (QPoint): Position within the table where the menu is requested.
+
+        Returns:
+            None
+        """
         context_menu = QMenu()
         
         # 获取选中的行
@@ -565,14 +684,29 @@ class FileManagerTab(QWidget):
             context_menu.exec(self.file_table.mapToGlobal(position))
     
     def copy_path_to_clipboard(self, file_path):
-        """复制文件路径到剪贴板"""
+        """Copy the absolute path to the system clipboard.
+
+        Args:
+            file_path (str): Absolute path to copy.
+
+        Returns:
+            None
+        """
         from PyQt6.QtWidgets import QApplication
         clipboard = QApplication.clipboard()
         clipboard.setText(file_path)
         self.status_label.setText("路径已复制到剪贴板")
     
     def delete_file(self, file_path, file_name):
-        """删除文件"""
+        """Delete the selected item (file or folder) after user confirmation.
+
+        Args:
+            file_path (str): Absolute path to the item to delete.
+            file_name (str): Display name used in confirmation dialogs.
+
+        Returns:
+            None
+        """
         reply = QMessageBox.question(
             self, "确认删除", 
             f"确定要删除 '{file_name}' 吗？\n此操作不可恢复！",

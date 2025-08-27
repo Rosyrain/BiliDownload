@@ -1,46 +1,53 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
-BiliDownload 主程序入口
-B站资源下载器 - 支持视频、音频等多种资源类型
+Main entry point for BiliDownload application.
+
+This module initializes the application and launches the main window.
+It sets up logging and handles the application lifecycle.
 """
 
 import sys
 import os
-import traceback
-from pathlib import Path
 
-# 添加src目录到Python路径
-src_path = Path(__file__).parent / "src"
-sys.path.insert(0, str(src_path))
+# Add src directory to Python path
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+
+from PyQt6.QtWidgets import QApplication
+from PyQt6.QtCore import Qt
+
+# Import logger manager
+from src.core.logger import get_logger
+
+# Get logger instance
+logger = get_logger("Main")
+
+# Import main window
+from src.ui.main_window import MainWindow
+
 
 def main():
-    """主函数"""
+    """
+    Main application entry point.
+    
+    Initializes the PyQt application, creates the main window,
+    and starts the event loop.
+    """
     try:
-        # 导入日志管理器
-        from src.core.logger import get_logger
+        # Create PyQt application
+        app = QApplication(sys.argv)
+        app.setApplicationName("BiliDownload")
+        app.setApplicationVersion("1.0.0")
         
-        # 获取日志管理器
-        logger = get_logger("Main")
-        logger.info("BiliDownload 程序启动")
+        # Create and show main window
+        window = MainWindow()
+        window.show()
         
-        # 导入主窗口
-        from ui.main_window import main as main_window_main
-        
-        # 启动应用程序
-        logger.info("启动主窗口")
-        main_window_main()
-        
-    except ImportError as e:
-        print(f"导入错误: {e}")
-        print("请确保已安装所有依赖包: pip install -r requirements.txt")
-        sys.exit(1)
+        # Start application event loop
+        sys.exit(app.exec())
         
     except Exception as e:
-        print(f"程序启动失败: {e}")
-        print("详细错误信息:")
-        traceback.print_exc()
+        logger.error(f"Application startup failed: {e}")
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main() 
