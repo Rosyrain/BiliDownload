@@ -1,4 +1,5 @@
 # BilibiliDownloadVideo
+
 > **免责声明：**
 >
 > 大家请以学习为目的使用本仓库，爬虫违法违规的案件：https://github.com/HiddenStrawberry/Crawler_Illegal_Cases_In_China
@@ -9,55 +10,134 @@
 
 如果对你有用，请点一个star~~
 
-### B站视频爬取器的使用
+---
 
-![img](https://rosyrain.oss-cn-hangzhou.aliyuncs.com/img2/202403311450280.jpg)
+##  项目重构完成 - 全新PyQt6界面！
+
+本项目已从原始的tkinter界面重构为现代化的PyQt6界面，提供更好的用户体验和功能扩展性。
+
+### ✨ 新版本主要特性
+
+-  **现代化界面**: 采用PyQt6构建，界面美观现代
+-  **响应式设计**: 支持窗口大小调整，适配不同屏幕
+-  **模块化架构**: 清晰的代码结构，易于维护和扩展
+-  **智能分类管理**: 支持嵌套分类，自动创建文件夹
+-  **强大文件管理**: 内置文件浏览器，支持搜索和右键操作
+-  **完善配置系统**: 支持多种下载参数和界面设置
+-  **多线程下载**: 下载不阻塞界面，支持进度显示
+
+### 🎯 快速开始
+
+#### 环境要求
+- Python 3.8+
+- FFmpeg (用于音视频合并)
+
+#### 安装依赖
+```bash
+pip install -r requirements.txt
+```
+
+#### 运行程序
+```bash
+# 方式1: 使用启动脚本
+python run.py
+
+# 方式2: 直接运行主程序
+python main.py
+
+# 方式3: 测试项目结构
+python test_imports.py
+
+# 方式4: 测试日志系统
+python test_logger.py
+```
+
+###  使用指南
+
+#### 1. 下载管理
+- 在"下载管理"标签页中输入B站视频链接
+- 点击"获取标题"自动获取视频信息
+- 选择保存路径和分类
+- 点击"开始下载"开始下载
+
+#### 2. 文件管理
+- 在"文件管理"标签页中浏览下载的文件
+- 支持文件搜索、预览、右键操作
+- 可快速跳转到文件所在目录
+
+#### 3. 分类管理
+- 在"分类管理"标签页中创建自定义分类
+- 支持嵌套分类结构
+- 每个分类对应一个文件夹
+
+#### 4. 设置配置
+- 在"设置"标签页中配置各种参数
+- 包括下载路径、FFmpeg路径、网络设置等
+
+###  项目结构
+
+```
+BiliDownload/
+├── src/                    # 源代码目录
+│   ├── core/              # 核心功能模块
+│   │   ├── downloader.py  # 下载器核心
+│   │   ├── config_manager.py  # 配置管理
+│   │   └── file_manager.py    # 文件管理
+│   └── ui/                # 用户界面模块
+│       ├── main_window.py # 主窗口
+│       ├── download_tab.py    # 下载标签页
+│       ├── file_manager_tab.py    # 文件管理标签页
+│       ├── category_tab.py   # 分类管理标签页
+│       └── settings_tab.py   # 设置标签页
+├── main.py                # 程序入口
+├── run.py                 # 启动脚本
+├── test_imports.py        # 导入测试
+├── requirements.txt        # 依赖包列表
+├── config.ini             # 配置文件
+├── categories.json        # 分类配置文件
+├── dev_log.md             # 开发日志
+└── README.md              # 项目说明
+```
+
+###  技术架构
+
+- **GUI框架**: PyQt6
+- **设计模式**: MVC架构
+- **模块化**: 插件化设计，易于扩展
+- **配置管理**: INI + JSON混合配置
+- **多线程**: 异步下载，不阻塞界面
+
+###  开发日志
+
+详细的开发日志请查看 [dev_log.md](dev_log.md) 文件。
+
+---
+
+## 原始版本说明
+
+### B站视频爬取器的使用
 
 上面两个程序，一个负责爬取系列类型，一个负责爬取单个视频；因为有时候系列类型的爬取会导致个别视频没有抓取到，为了方便可以使用第二个进行单个视频的抓取
 
- 
-
 **使用过程**
 
-**\1.  点击上述的两个程序**
+**1. 点击上述的两个程序**
 
-![image-20240331175956446](https://rosyrain.oss-cn-hangzhou.aliyuncs.com/img2/202403311759523.png)
-
-**\2.  依次进行选择（点击按钮即可进行选择）**
+**2. 依次进行选择（点击按钮即可进行选择）**
 
 其中FFpeg.exe存在于
-
-![img](https://rosyrain.oss-cn-hangzhou.aliyuncs.com/img2/202403311450283.jpg)
-
-![img](https://rosyrain.oss-cn-hangzhou.aliyuncs.com/img2/202403311450288.jpg)
-
-![img](https://rosyrain.oss-cn-hangzhou.aliyuncs.com/img2/202403311450290.jpg)
-
- 
 
  保存路径：可自行选择文件夹，或者选择提供的data文件夹中
 
  获取视频名称：系列类型的需要自行提供，会根据提供名加下标保存视频，如提供的是 Go学习 ， 那么依次保存为 Go学习_1.mp4，Go学习_2.mp4 ………
 
- 
-
- 
-
 视频地址如下显示的内容
 
-![img](https://rosyrain.oss-cn-hangzhou.aliyuncs.com/img2/202403311450296.jpg)
-
-\3.  可在黑窗口中观察程序的运行情况
-
- 
+**3. 可在黑窗口中观察程序的运行情况**
 
 4.运行可能出现如教程中点击开始爬取后，没有正常运行起来，抓取视频，可以多点击几次进行尝试。
 
-
-
 5.添加cookie获取高清视频，在单个B站视频爬取的讲解视频中会说明(ps:一定要在**登录状态**下的cookie才能实现高清视频的下载)
-
-![](https://rosyrain.oss-cn-hangzhou.aliyuncs.com/img2/202403311759523.png)
 
 ## 免责声明
 
