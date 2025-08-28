@@ -54,4 +54,15 @@ Thumbs.db
 
 # 临时文件
 *.tmp
-*.temp 
+*.temp cache/
+
+# 媒体文件
+*.mp4
+*.m4s
+*.m4a
+*.mp3
+*.flv
+*.webm
+*.mkv
+*.avi
+*.mov

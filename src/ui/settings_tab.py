@@ -717,7 +717,31 @@ class SettingsTab(QWidget):
         self.cache_size_spin.setToolTip("缓存的最大大小")
         performance_layout.addRow("缓存大小:", self.cache_size_spin)
         
-        layout.addWidget(performance_group)
+        # 高级设置组
+        advanced_group = QGroupBox("高级设置")
+        advanced_layout = QFormLayout(advanced_group)
+        advanced_layout.setContentsMargins(15, 15, 15, 15)
+        advanced_layout.setSpacing(15)
+        
+        # 断点续传块大小设置
+        self.resume_chunk_size = QSpinBox()
+        self.resume_chunk_size.setMinimum(1)
+        self.resume_chunk_size.setMaximum(100)
+        self.resume_chunk_size.setValue(10)  # 默认值
+        self.resume_chunk_size.setSuffix(" MB")
+        self.resume_chunk_size.setToolTip("设置断点续传时的块大小，较小的值可以提高断点续传的精度，但可能增加网络请求次数")
+        advanced_layout.addRow("断点续传块大小:", self.resume_chunk_size)
+        
+        # 最大并发下载数设置
+        self.max_concurrent_downloads = QSpinBox()
+        self.max_concurrent_downloads.setMinimum(1)
+        self.max_concurrent_downloads.setMaximum(10)
+        self.max_concurrent_downloads.setValue(3)  # 默认值
+        self.max_concurrent_downloads.setToolTip("设置最大同时下载任务数，过多的并发下载可能导致网络拥塞")
+        advanced_layout.addRow("最大并发下载数:", self.max_concurrent_downloads)
+        
+        # 添加到主布局
+        layout.addWidget(advanced_group)
         
         layout.addStretch()
         return tab

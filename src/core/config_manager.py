@@ -185,7 +185,8 @@ class ConfigManager:
         
         if old_value != value:
             self.logger.info(f"Configuration changed: [{section}] {key} = {value}")
-            self.logger.log_config_change(section, key, value)
+            # Remove call to non-existent method
+            # self.logger.log_config_change(section, key, value)
         
         self.save_config()
     
@@ -227,6 +228,95 @@ class ConfigManager:
             path (str): New FFmpeg path to set
         """
         self.set('DEFAULT', 'ffmpeg_path', path)
+    
+    def get_max_concurrent_downloads(self) -> int:
+        """
+        Get maximum concurrent downloads setting.
+        
+        Returns:
+            int: Maximum number of concurrent downloads
+        """
+        try:
+            return int(self.get('DEFAULT', 'max_concurrent_downloads', '3'))
+        except ValueError:
+            return 3
+    
+    def set_max_concurrent_downloads(self, count: int):
+        """
+        Set maximum concurrent downloads setting.
+        
+        Args:
+            count (int): New maximum concurrent downloads value
+        """
+        self.set('DEFAULT', 'max_concurrent_downloads', str(count))
+    
+    def get_download_settings(self) -> dict:
+        """
+        Get all download settings.
+        
+        Returns:
+            dict: Dictionary containing download settings
+        """
+        settings = {
+            'chunk_size': int(self.get('DOWNLOAD', 'chunk_size', '8192')),
+            'timeout': int(self.get('DOWNLOAD', 'timeout', '30')),
+            'retry_count': int(self.get('DOWNLOAD', 'retry_count', '3')),
+            'delay_between_requests': float(self.get('DOWNLOAD', 'delay_between_requests', '1')),
+            'enable_resume': self.get('DOWNLOAD', 'enable_resume', 'true').lower() == 'true',
+            'resume_chunk_size': int(self.get('DOWNLOAD', 'resume_chunk_size', '10')),
+            'progress_update_interval': int(self.get('DOWNLOAD', 'progress_update_interval', '500'))
+        }
+        return settings
+    
+    def get_resume_chunk_size(self) -> int:
+        """
+        Get resume chunk size in MB.
+        
+        Returns:
+            int: Resume chunk size in MB
+        """
+        try:
+            return int(self.config.get('DOWNLOAD', 'resume_chunk_size', fallback=10))
+        except:
+            return 10
+    
+    def set_resume_chunk_size(self, size: int):
+        """
+        Set resume chunk size in MB.
+        
+        Args:
+            size (int): New resume chunk size in MB
+        """
+        if not self.config.has_section('DOWNLOAD'):
+            self.config.add_section('DOWNLOAD')
+        
+        self.config.set('DOWNLOAD', 'resume_chunk_size', str(size))
+        self.save_config()
+    
+    def get_max_concurrent_downloads(self) -> int:
+        """
+        Get maximum number of concurrent downloads.
+        
+        Returns:
+            int: Maximum number of concurrent downloads
+        """
+        try:
+            return int(self.config.get('DOWNLOAD', 'max_concurrent_downloads', fallback=3))
+        except:
+            return 3
+    
+    def set_max_concurrent_downloads(self, count: int):
+        """
+        Set maximum number of concurrent downloads.
+        
+        Args:
+            count (int): Maximum number of concurrent downloads
+        """
+        if not self.config.has_section('DOWNLOAD'):
+            self.config.add_section('DOWNLOAD')
+        
+        self.config.set('DOWNLOAD', 'max_concurrent_downloads', str(count))
+        self.save_config()
     
     def get_category_path(self, category_name: str) -> str:
         """
