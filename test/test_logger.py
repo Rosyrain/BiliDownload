@@ -4,8 +4,8 @@
 测试日志系统
 """
 
-import sys
 import os
+import sys
 
 
 def test_logger():

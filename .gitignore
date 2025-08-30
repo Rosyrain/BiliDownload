@@ -74,4 +74,3 @@ venv/
 .env
 *.code-workspace
 .vscode/
-.pre-commit-config.yaml

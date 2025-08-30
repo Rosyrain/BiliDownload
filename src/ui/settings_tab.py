@@ -3,22 +3,23 @@
 """
 
 import os
+
 from PyQt6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
+    QCheckBox,
+    QComboBox,
+    QFileDialog,
+    QFormLayout,
+    QFrame,
+    QGroupBox,
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QPushButton,
-    QComboBox,
-    QSpinBox,
-    QCheckBox,
-    QGroupBox,
-    QFrame,
-    QFileDialog,
     QMessageBox,
+    QPushButton,
+    QSpinBox,
     QTabWidget,
-    QFormLayout,
+    QVBoxLayout,
+    QWidget,
 )
 
 from src.core.config_manager import ConfigManager
