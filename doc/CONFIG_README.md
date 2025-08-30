@@ -19,13 +19,13 @@ BiliDownload 现在使用统一的配置文件 `config.ini` 来管理所有设�
 
 ## 配置文件结构
 
-### [DEFAULT] 节 - 基本设置
+### [GENERAL] 节 - 基本设置
 ```ini
-[DEFAULT]
+[GENERAL]
 # 默认下载路径 (相对于项目根目录)
 download_path = ./data/default
 # FFmpeg 可执行文件路径
-ffmpeg_path = 
+ffmpeg_path =
 # 最大并发下载数
 max_concurrent_downloads = 3
 # 是否自动创建分类文件夹
@@ -92,9 +92,9 @@ log_retention_days = 30
 # 是否启用代理
 use_proxy = false
 # 代理服务器地址
-proxy_host = 
+proxy_host =
 # 代理服务器端口
-proxy_port = 
+proxy_port =
 # 是否启用调试模式
 debug_mode = false
 ```
@@ -165,4 +165,4 @@ data/
 
 - 新版本完全兼容旧的 `config.ini` 格式
 - 自动迁移 `categories.json` 中的分类配置
-- 向后兼容所有现有设置 
+- 向后兼容所有现有设置
