@@ -66,3 +66,12 @@ Thumbs.db
 *.mkv
 *.avi
 *.mov
+
+# workspace
+venv/
+.venv/
+.history/
+.env
+*.code-workspace
+.vscode/
+.pre-commit-config.yaml
