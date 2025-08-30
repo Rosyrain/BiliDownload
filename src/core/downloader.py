@@ -1,3 +1,4 @@
+# ruff: noqa: E501
 """
 Bilibili video downloader core module.
 
@@ -9,14 +10,17 @@ This module provides the core functionality for downloading Bilibili videos incl
 """
 
 import os
-import re
-import time
-import subprocess
-import requests
-from typing import Dict
-from .logger import get_logger
-from src.core.config_manager import ConfigManager
 import random
+import re
+import subprocess
+import time
+from typing import Dict
+
+import requests
+
+from src.core.config_manager import ConfigManager
+
+from .logger import get_logger
 
 
 class BiliDownloader:
