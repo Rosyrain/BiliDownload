@@ -7,12 +7,11 @@ It sets up logging and handles the application lifecycle.
 
 import sys
 
-from PyQt6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication
 
 from src.core.logger import get_logger
-from src.ui.main_window import MainWindow
+from src.ui.main_interface import Main_Interface
 
-# Get logger instance
 logger = get_logger("BiliDownload")
 
 
@@ -30,7 +29,7 @@ def main():
         app.setApplicationVersion("1.0.0")
 
         # Create and show main window
-        window = MainWindow()
+        window = Main_Interface()
         window.show()
 
         # Start application event loop

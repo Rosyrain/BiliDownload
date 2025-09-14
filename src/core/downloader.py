@@ -19,8 +19,7 @@ from typing import Dict
 import requests
 
 from src.core.config_manager import ConfigManager
-
-from .logger import get_logger
+from src.core.logger import get_logger
 
 
 class BiliDownloader:

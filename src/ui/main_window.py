@@ -15,15 +15,9 @@ import subprocess
 import sys
 from datetime import datetime
 
-from PyQt6.QtCore import QSize, Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import (
-    QBrush,
-    QColor,
-    QCursor,
-    QFont,
-    QIcon,
-)
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import QSize, Qt, QThread, Signal
+from PySide6.QtGui import QBrush, QColor, QCursor, QFont, QIcon
+from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
     QCheckBox,
@@ -37,7 +31,6 @@ from PyQt6.QtWidgets import (
     QInputDialog,
     QLabel,
     QLineEdit,
-    QMainWindow,
     QMessageBox,
     QPushButton,
     QScrollArea,
@@ -54,16 +47,24 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from qfluentwidgets import FluentIcon as FIF
+
+# Fluent Widgets 导入
+from qfluentwidgets import (
+    FluentWindow,
+    NavigationItemPosition,
+    Theme,
+    setTheme,
+)
 
 from src.core.config_manager import ConfigManager
 from src.core.file_manager import FileManager
 from src.core.logger import Logger, get_logger
-
-from .category_tab import CategoryTab
-from .download_tab import DownloadTab
-from .file_manager_tab import FileManagerTab
-from .settings_tab import SettingsTab
-from .task_list_tab import TaskListTab, TaskManager
+from src.ui.category_tab import CategoryTab
+from src.ui.download_tab import DownloadTab
+from src.ui.file_manager_tab import FileManagerTab
+from src.ui.settings_tab import SettingsTab
+from src.ui.task_list_tab import TaskListTab, TaskManager
 
 
 class DownloadWorker(QThread):
@@ -75,17 +76,17 @@ class DownloadWorker(QThread):
         video_progress_updated (str, float): 视频下载进度信号 (任务ID, 进度百分比)
         audio_progress_updated (str, float): 音频下载进度信号 (任务ID, 进度百分比)
         merge_progress_updated (str, float): 合并进度信号 (任务ID, 进度百分比)
-        download_finished (str, bool, str): 下载完成信号 (任务ID, 是否成功, 消息)
+        download_finished (str, bool, str): 下载完成信号 (任务ID, 是否成功, 消消息)
         log_message (str, str, dict): 日志消息信号 (任务ID, 消息, 额外参数)
     """
 
     # 定义信号
-    progress_updated = pyqtSignal(str, float, str)  # 任务ID, 进度, 消息
-    video_progress_updated = pyqtSignal(str, float)  # 任务ID, 视频进度
-    audio_progress_updated = pyqtSignal(str, float)  # 任务ID, 音频进度
-    merge_progress_updated = pyqtSignal(str, float)  # 任务ID, 合并进度
-    download_finished = pyqtSignal(str, bool, str)  # 任务ID, 成功标志, 消息
-    log_message = pyqtSignal(str, str, dict)  # 任务ID, 消息, 额外参数
+    progress_updated = Signal(str, float, str)  # 任务ID, 进度, 消息
+    video_progress_updated = Signal(str, float)  # 任务ID, 视频进度
+    audio_progress_updated = Signal(str, float)  # 任务ID, 音频进度
+    merge_progress_updated = Signal(str, float)  # 任务ID, 合并进度
+    download_finished = Signal(str, bool, str)  # 任务ID, 成功标志, 消息
+    log_message = Signal(str, str, dict)  # 任务ID, 消息, 额外参数
 
     def __init__(
         self, task_id, url, save_path, ffmpeg_path, download_type, config_manager
@@ -294,7 +295,7 @@ class DownloadWorker(QThread):
         return re.sub(invalid_chars, "_", filename)
 
 
-class MainWindow(QMainWindow):
+class MainWindow(FluentWindow):
     """
     Main application window for BiliDownload.
 
@@ -305,6 +306,8 @@ class MainWindow(QMainWindow):
     """
 
     def __init__(self):
+        # 应用 Fluent Widgets 主题
+        setTheme(Theme.LIGHT)
         """
         Initialize the main application window.
 
@@ -320,56 +323,11 @@ class MainWindow(QMainWindow):
         self.file_manager = FileManager()
         self.task_manager = TaskManager(self.config_manager)
 
-        # Set window properties
-        self.setWindowTitle("BiliDownload - Bilibili Video Downloader")
-        self.setMinimumSize(1000, 600)
-        self.resize(1200, 700)
-
-        # Set window resize policy
-        try:
-            self.setSizeGripEnabled(True)
-        except AttributeError:
-            pass
-
-        # Set window resize event
-        self.resizeEvent = self.on_resize_event
-
         # Initialize UI
         self.init_ui()
 
         # Load configuration
         self.load_config()
-
-    def on_resize_event(self, event):
-        """
-        Handle window resize events.
-
-        Args:
-            event (QResizeEvent): Window resize event.
-
-        Returns:
-            None
-        """
-        super().resizeEvent(event)
-
-        # Delay saving window size to avoid frequent saves
-        QTimer.singleShot(500, self.save_window_size)
-
-    def save_window_size(self):
-        """
-        Save current window dimensions to configuration.
-
-        Silently records the new window size without logging.
-
-        Returns:
-            None
-        """
-        try:
-            # Silently save, don't print logs
-            pass
-        except Exception:
-            # Silent error handling, don't log
-            pass
 
     def load_config(self):
         """
@@ -380,12 +338,39 @@ class MainWindow(QMainWindow):
         Returns:
             None
         """
-        try:
-            width = int(self.config_manager.get("UI", "window_width", "1200"))
-            height = int(self.config_manager.get("UI", "window_height", "800"))
-            self.resize(width, height)
-        except Exception:
-            pass
+        # TODO: 临时注释以保持简洁，需确认是否有此需求
+        # try:
+        #     width = int(self.config_manager.get("UI", "window_width", "1200"))
+        #     height = int(self.config_manager.get("UI", "window_height", "800"))
+        #     self.resize(width, height)
+        # except Exception:
+        #     pass
+
+    def initNavigation(self):
+        """初始化导航"""
+        # 添加子界面
+        self.addSubInterface(self.download_interface, FIF.DOWNLOAD, "下载管理")
+
+        self.addSubInterface(self.task_list_interface, FIF.MENU, "任务列表")
+
+        self.addSubInterface(self.file_manager_interface, FIF.FOLDER, "文件管理")
+
+        self.addSubInterface(
+            self.setting_interface,
+            FIF.SETTING,
+            "设置",
+            position=NavigationItemPosition.BOTTOM,
+        )
+
+    def initWindow(self):
+        """初始化窗口"""
+        self.resize(1200, 800)
+        self.setWindowTitle("BiliDownload - Bilibili Video Downloader")
+
+        # 居中显示
+        desktop = QApplication.screens()[0].availableGeometry()
+        w, h = desktop.width(), desktop.height()
+        self.move(w // 2 - self.width() // 2, h // 2 - self.height() // 2)
 
     def init_ui(self):
         """
@@ -401,9 +386,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("BiliDownload - Bilibili Video Downloader")
         self.setMinimumSize(1000, 600)
         self.resize(1200, 700)
-
-        # Apply theme
-        self.apply_soft_theme()
 
         # Main layout
         main_layout = QVBoxLayout()
@@ -439,10 +421,9 @@ class MainWindow(QMainWindow):
         # Set the main widget
         main_widget = QWidget()
         main_widget.setLayout(main_layout)
-        self.setCentralWidget(main_widget)
+        main_widget.setParent(self)
+        self.setLayout(main_layout)
 
-        # Load initial data
-        self.load_config()
         self.refresh_download_paths_combo()
 
         # Refresh file display with default path
@@ -451,212 +432,6 @@ class MainWindow(QMainWindow):
             self.populate_file_table_for_path(default_path)
             if hasattr(self, "current_path_label"):
                 self.current_path_label.setText(default_path)
-
-    def apply_soft_theme(self):
-        """
-        Apply a soft, Cloudreve-like theme across the main window widgets.
-
-        Returns:
-            None
-        """
-        self.setStyleSheet("""
-            QWidget { background-color: #f8f9ff; color: #4a5bbf; }
-            QLabel#appHeader { color: #4a5bbf; font-weight: bold; }
-            QFrame#topBar {
-                background: #ffffff;
-                border-bottom: 1px solid #e1e8ff;
-            }
-            QFrame#functionBar {
-                background: #ffffff;
-                border: 1px solid #e1e8ff;
-                border-radius: 6px;
-            }
-            QFrame#leftSidebar { background: #ffffff; border-right: 1px solid #e1e8ff; }
-            QSplitter#middleSplitter::handle { background: #eef2ff; width: 6px; }
-            QSplitter::handle:vertical { height: 6px; }
-            QTreeWidget {
-                border: 1px solid #e1e8ff;
-                border-radius: 6px;
-                background-color: white;
-                font-family: 'Consolas', 'Menlo', 'Monaco', monospace;
-                font-size: 13px;
-            }
-            QTreeWidget::item {
-                height: 26px;
-                padding-left: 5px;
-                border-bottom: 1px solid #f0f4ff;
-            }
-            QTreeWidget::item:selected {
-                background-color: #e8f0ff;
-                color: #4a5bbf;
-            }
-            QTreeWidget::item:hover {
-                background-color: #f0f4ff;
-            }
-            QTreeWidget::branch {
-                background-color: white;
-            }
-            QTreeWidget::branch:has-children:!has-siblings:closed,
-            QTreeWidget::branch:closed:has-children:has-siblings {
-                image: url(resources/collapsed.png);
-            }
-            QTreeWidget::branch:open:has-children:!has-siblings,
-            QTreeWidget::branch:open:has-children:has-siblings {
-                image: url(resources/expanded.png);
-            }
-            QTableWidget {
-                border: 1px solid #e1e8ff;
-                border-radius: 6px;
-                background: #ffffff;
-            }
-            QTableWidget::item {
-                height: 36px;
-                padding: 4px;
-                border-bottom: 1px solid #f0f4ff;
-            }
-            QHeaderView::section {
-                background-color: #f0f4ff;
-                color: #5a6acf;
-                padding: 8px;
-                border: none;
-                border-right: 1px solid #e1e8ff;
-                height: 36px;
-            }
-            QLineEdit, QSpinBox, QComboBox {
-                border: 1px solid #e1e8ff;
-                border-radius: 6px;
-                padding: 6px;
-                background: #ffffff;
-            }
-            QPushButton {
-                background: #e8f0ff;
-                color: #5a6acf;
-                border: 1px solid #d1d8ff;
-                border-radius: 6px;
-                padding: 4px 10px;
-                min-height: 24px;
-                max-height: 30px;
-            }
-            QPushButton:hover {
-                background: #d8e8ff;
-            }
-            QToolButton {
-                background: #e8f0ff;
-                color: #5a6acf;
-                border: 1px solid #d1d8ff;
-                border-radius: 6px;
-                padding: 4px 8px;
-                min-width: 60px;
-                min-height: 24px;
-                max-height: 30px;
-            }
-            QToolButton:hover {
-                background: #d8e8ff;
-            }
-            QToolButton:checked {
-                background: #4a5bbf;
-                color: white;
-            }
-            QCheckBox {
-                spacing: 8px;
-            }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-                border: 1px solid #d1d8ff;
-                border-radius: 3px;
-                background: white;
-            }
-            QCheckBox::indicator:checked {
-                background-color: #4a5bbf;
-                border-color: #4a5bbf;
-            }
-            QToolTip {
-                background-color: #ffffff;
-                color: #4a5bbf;
-                border: 1px solid #e1e8ff;
-                padding: 5px;
-            }
-            QGroupBox {
-                background-color: #ffffff;
-                border: 1px solid #e1e8ff;
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 12px;
-                font-weight: bold;
-            }
-            QScrollBar:vertical {
-                border: none;
-                background: #f0f4ff;
-                width: 10px;
-                margin: 0px;
-                border-radius: 5px;
-            }
-            QScrollBar::handle:vertical {
-                background: #d1d8ff;
-                min-height: 30px;
-                border-radius: 5px;
-            }
-            QScrollBar::handle:vertical:hover {
-                background: #b1b8ff;
-            }
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
-                height: 0px;
-            }
-            QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {
-                background: none;
-            }
-            QScrollBar:horizontal {
-                border: none;
-                background: #f0f4ff;
-                height: 10px;
-                margin: 0px;
-                border-radius: 5px;
-            }
-            QScrollBar::handle:horizontal {
-                background: #d1d8ff;
-                min-width: 30px;
-                border-radius: 5px;
-            }
-            QScrollBar::handle:horizontal:hover {
-                background: #b1b8ff;
-            }
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
-                width: 0px;
-            }
-            QScrollBar::add-page:horizontal, QScrollBar::sub-page:horizontal {
-                background: none;
-            }
-            QSpinBox {
-                padding-right: 15px;
-                background-color: white;
-            }
-            QSpinBox::up-button {
-                subcontrol-origin: border;
-                subcontrol-position: top right;
-                width: 16px;
-                height: 12px;
-                border-left: 1px solid #d1d8ff;
-                border-bottom: 1px solid #d1d8ff;
-                border-top-right-radius: 6px;
-                background: #f0f4ff;
-            }
-            QSpinBox::up-button:hover {
-                background: #d8e8ff;
-            }
-            QSpinBox::down-button {
-                subcontrol-origin: border;
-                subcontrol-position: bottom right;
-                width: 16px;
-                height: 12px;
-                border-left: 1px solid #d1d8ff;
-                border-bottom-right-radius: 6px;
-                background: #f0f4ff;
-            }
-            QSpinBox::down-button:hover {
-                background: #d8e8ff;
-            }
-        """)
 
     def create_title_bar(self):
         """
@@ -777,7 +552,7 @@ class MainWindow(QMainWindow):
         # Add BiliDownload title and make it clickable to return to main page
         title_label = QLabel("BiliDownload")
         title_label.setFont(QFont("Arial", 16, QFont.Weight.Bold))
-        title_label.setStyleSheet("color: #4a5bbf;")
+
         title_label.setCursor(QCursor(Qt.CursorShape.PointingHandCursor))
         title_label.mousePressEvent = lambda event: self.show_main_content()
         layout.addWidget(title_label)
@@ -823,9 +598,7 @@ class MainWindow(QMainWindow):
 
         # 分类标题 - 放大字体
         category_label = QLabel("分类")
-        category_label.setStyleSheet(
-            "font-weight: bold; font-size: 18px; color: #4a5bbf;"
-        )
+
         title_layout.addWidget(category_label)
         layout.addWidget(title_container)
 
@@ -834,32 +607,7 @@ class MainWindow(QMainWindow):
         self.category_tree.setHeaderHidden(True)
         self.category_tree.setIndentation(15)
         self.category_tree.setIconSize(QSize(20, 20))  # 增大图标尺寸
-        self.category_tree.setStyleSheet("""
-            QTreeWidget {
-                border: none;
-                background-color: #f5f7fa;
-                outline: none;
-                padding: 5px;
-            }
-            QTreeWidget::item {
-                height: 30px;
-                border-radius: 4px;
-                padding-left: 4px;
-                color: #333333;
-                margin: 2px 0px;
-            }
-            QTreeWidget::item:selected {
-                background-color: #e8f0ff;
-                color: #4a5bbf;
-                font-weight: bold;
-            }
-            QTreeWidget::item:hover {
-                background-color: #f0f5ff;
-            }
-            QTreeWidget::branch {
-                background-color: transparent;
-            }
-        """)
+
         self.category_tree.itemClicked.connect(self.on_category_selected)
         # 设置尺寸策略，使树形控件可以扩展填充空间
         self.category_tree.setSizePolicy(
@@ -877,56 +625,36 @@ class MainWindow(QMainWindow):
         separator = QFrame()
         separator.setFrameShape(QFrame.Shape.HLine)
         separator.setFrameShadow(QFrame.Shadow.Sunken)
-        separator.setStyleSheet("background-color: #e0e0e0;")
+
         bottom_layout.addWidget(separator)
 
-        # 定义按钮样式
-        button_style = """
-            QPushButton {
-                background-color: #e8f0ff;
-                border: 1px solid #d0d8ff;
-                border-radius: 4px;
-                padding: 8px;
-                font-size: 13px;
-                font-weight: bold;
-                color: #4a5bbf;
-                text-align: center;
-                margin: 2px 0px;
-            }
-            QPushButton:hover {
-                background-color: #d0e0ff;
-                border-color: #b0c0ff;
-            }
-            QPushButton:pressed {
-                background-color: #c0d0ff;
-            }
-        """
+        # button_style removed; rely on qfluentwidgets theme for button appearance
 
         # 新建文件夹按钮
         new_folder_btn = QPushButton("新建文件夹")
-        new_folder_btn.setStyleSheet(button_style)
+
         new_folder_btn.clicked.connect(self.create_category_folder)
         bottom_layout.addWidget(new_folder_btn)
 
         # 刷新按钮
         refresh_btn = QPushButton("刷新")
-        refresh_btn.setStyleSheet(button_style)
+
         refresh_btn.clicked.connect(self.refresh_category_tree)
         bottom_layout.addWidget(refresh_btn)
 
         # 底部固定按钮
         info_btn = QPushButton("说明")
-        info_btn.setStyleSheet(button_style)
+
         info_btn.clicked.connect(self.show_info)
         bottom_layout.addWidget(info_btn)
 
         config_btn = QPushButton("配置")
-        config_btn.setStyleSheet(button_style)
+
         config_btn.clicked.connect(self.show_settings)
         bottom_layout.addWidget(config_btn)
 
         version_btn = QPushButton("版本")
-        version_btn.setStyleSheet(button_style)
+
         version_btn.clicked.connect(self.show_version)
         bottom_layout.addWidget(version_btn)
 
@@ -1052,14 +780,7 @@ class MainWindow(QMainWindow):
         path_layout.addWidget(QLabel("当前路径:"))
         self.current_path_label = QLineEdit()
         self.current_path_label.setReadOnly(True)
-        self.current_path_label.setStyleSheet("""
-            QLineEdit {
-                font-weight: bold;
-                background-color: transparent;
-                border: none;
-                padding: 2px;
-            }
-        """)
+
         path_layout.addWidget(self.current_path_label, 1)  # 路径显示占据大部分空间
 
         # 文件计数
@@ -1075,18 +796,7 @@ class MainWindow(QMainWindow):
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("输入文件名搜索...")
         self.search_input.setClearButtonEnabled(True)
-        self.search_input.setStyleSheet("""
-            QLineEdit {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 5px;
-                background-color: white;
-                min-width: 150px;
-            }
-            QLineEdit:focus {
-                border-color: #409eff;
-            }
-        """)
+
         self.search_input.textChanged.connect(self.on_search_text_changed)
         top_layout.addWidget(self.search_input)
 
@@ -1096,35 +806,7 @@ class MainWindow(QMainWindow):
 
         self.type_combo = QComboBox()
         self.type_combo.addItem("全部")
-        self.type_combo.setStyleSheet("""
-            QComboBox {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 5px 10px 5px 10px;
-                background-color: white;
-                min-width: 100px;
-                font-size: 13px;
-            }
-            QComboBox:focus {
-                border-color: #409eff;
-            }
-            QComboBox::drop-down {
-                subcontrol-origin: padding;
-                subcontrol-position: center right;
-                width: 20px;
-                border-left: none;
-            }
-            QComboBox QAbstractItemView {
-                border: 1px solid #409eff;
-                background-color: white;
-                selection-background-color: #e8f0ff;
-                selection-color: #4a5bbf;
-            }
-            QComboBox QAbstractItemView::item {
-                height: 25px;
-                padding: 5px;
-            }
-        """)
+
         self.type_combo.currentIndexChanged.connect(self.on_file_type_changed)
         top_layout.addWidget(self.type_combo)
 
@@ -1172,31 +854,7 @@ class MainWindow(QMainWindow):
         self.file_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.file_table.setAlternatingRowColors(True)
         self.file_table.setShowGrid(False)
-        self.file_table.setStyleSheet("""
-            QTableWidget {
-                border: 1px solid #e1e8ff;
-                border-radius: 6px;
-                background-color: white;
-                gridline-color: transparent;
-            }
-            QTableWidget::item {
-                padding: 8px;
-                border-bottom: 1px solid #f0f4ff;
-                height: 40px;  /* 增大行高 */
-            }
-            QTableWidget::item:selected {
-                background-color: #e8f0ff;
-                color: #4a5bbf;
-            }
-            QHeaderView::section {
-                background-color: #f5f7fa;
-                border: none;
-                border-bottom: 1px solid #e1e8ff;
-                padding: 8px;
-                font-weight: bold;
-                height: 40px;  /* 增大表头高度 */
-            }
-        """)
+
         # 设置行高为55像素
         self.file_table.verticalHeader().setDefaultSectionSize(55)
 
@@ -1422,37 +1080,12 @@ class MainWindow(QMainWindow):
 
             open_btn = QPushButton("打开")
             open_btn.setFixedSize(70, 36)
-            open_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #e8f0ff;
-                    border: 1px solid #d1d8ff;
-                    border-radius: 4px;
-                    padding: 2px 8px;
-                    font-size: 13px;
-                    font-weight: bold;
-                }
-                QPushButton:hover {
-                    background-color: #d8e8ff;
-                }
-            """)
+
             open_btn.clicked.connect(lambda _, fp=file_info["path"]: self.open_file(fp))
 
             delete_btn = QPushButton("删除")
             delete_btn.setFixedSize(70, 36)
-            delete_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #ffe8e8;
-                    border: 1px solid #ffd1d1;
-                    border-radius: 4px;
-                    padding: 2px 8px;
-                    font-size: 13px;
-                    font-weight: bold;
-                    color: #bf4a4a;
-                }
-                QPushButton:hover {
-                    background-color: #ffd8d8;
-                }
-            """)
+
             delete_btn.clicked.connect(
                 lambda _, fp=file_info["path"]: self.delete_file(fp)
             )
@@ -1913,9 +1546,7 @@ class MainWindow(QMainWindow):
 
         # 标题
         title_label = QLabel("应用设置")
-        title_label.setStyleSheet(
-            "font-size: 18px; font-weight: bold; margin-bottom: 10px;"
-        )
+
         scroll_layout.addWidget(title_label)
 
         # 基本设置组
@@ -1963,54 +1594,13 @@ class MainWindow(QMainWindow):
         self.spin_max_concurrent.setMaximum(10)
         self.spin_max_concurrent.setValue(3)
         self.spin_max_concurrent.setFixedWidth(80)
-        self.spin_max_concurrent.setStyleSheet("""
-            QSpinBox {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 5px;
-                background-color: white;
-                font-size: 13px;
-            }
-            QSpinBox:focus {
-                border-color: #409eff;
-            }
-            QSpinBox::up-button, QSpinBox::down-button {
-                width: 12px;   /* 确保宽度足够显示箭头 */
-                height: 12px;  /* 增加高度 */
-                background-color: #f5f7fa;
-                border-left: 1px solid #dcdfe6;
-            }
-            QSpinBox::up-button:hover, QSpinBox::down-button:hover {
-                background-color: #e6f2ff;
-            }
-            QSpinBox::up-button {
-                subcontrol-origin: border;
-                subcontrol-position: top right;
-                border-top-right-radius: 3px;
-            }
-            QSpinBox::down-button {
-                subcontrol-origin: border;
-                subcontrol-position: bottom right;
-                border-bottom-right-radius: 3px;
-                border-top: 1px solid #dcdfe6;
-            }
-        """)
+
         advanced_layout.addWidget(self.spin_max_concurrent, 0, 1)
 
         # 提示按钮
         help_btn = QPushButton("?")
         help_btn.setFixedSize(30, 30)  # 增大按钮尺寸
-        help_btn.setStyleSheet("""
-            QPushButton {
-                border-radius: 15px;
-                background-color: #e0e0ff;
-                font-size: 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #d0d0ff;
-            }
-        """)
+
         help_btn.clicked.connect(
             lambda: QMessageBox.information(
                 self, "并发下载", "设置同时下载的视频数量，建议不超过5个。"
@@ -2026,54 +1616,13 @@ class MainWindow(QMainWindow):
         self.spin_resume_chunk.setMaximum(100)
         self.spin_resume_chunk.setValue(10)
         self.spin_resume_chunk.setFixedWidth(80)
-        self.spin_resume_chunk.setStyleSheet("""
-            QSpinBox {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 5px;
-                background-color: white;
-                font-size: 13px;
-            }
-            QSpinBox:focus {
-                border-color: #409eff;
-            }
-            QSpinBox::up-button, QSpinBox::down-button {
-                width: 12px;
-                height: 12px;
-                background-color: #f5f7fa;
-                border-left: 1px solid #dcdfe6;
-            }
-            QSpinBox::up-button:hover, QSpinBox::down-button:hover {
-                background-color: #e6f2ff;
-            }
-            QSpinBox::up-button {
-                subcontrol-origin: border;
-                subcontrol-position: top right;
-                border-top-right-radius: 3px;
-            }
-            QSpinBox::down-button {
-                subcontrol-origin: border;
-                subcontrol-position: bottom right;
-                border-bottom-right-radius: 3px;
-                border-top: 1px solid #dcdfe6;
-            }
-        """)
+
         advanced_layout.addWidget(self.spin_resume_chunk, 1, 1)
 
         # 断点续传块大小提示按钮
         help_btn2 = QPushButton("?")
         help_btn2.setFixedSize(30, 30)
-        help_btn2.setStyleSheet("""
-            QPushButton {
-                border-radius: 15px;
-                background-color: #e0e0ff;
-                font-size: 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #d0d0ff;
-            }
-        """)
+
         help_btn2.clicked.connect(
             lambda: QMessageBox.information(
                 self,
@@ -2092,17 +1641,7 @@ class MainWindow(QMainWindow):
         # 详细日志提示按钮
         help_btn3 = QPushButton("?")
         help_btn3.setFixedSize(30, 30)  # 增大按钮尺寸
-        help_btn3.setStyleSheet("""
-            QPushButton {
-                border-radius: 15px;
-                background-color: #e0e0ff;
-                font-size: 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #d0d0ff;
-            }
-        """)
+
         help_btn3.clicked.connect(
             lambda: QMessageBox.information(
                 self, "详细日志", "启用后将记录更详细的日志信息，有助于排查问题。"
@@ -2119,18 +1658,7 @@ class MainWindow(QMainWindow):
 
         save_btn = QPushButton("保存")
         save_btn.setMinimumWidth(120)
-        save_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4a5bbf;
-                color: white;
-                font-weight: bold;
-                padding: 10px 20px;
-                border-radius: 6px;
-            }
-            QPushButton:hover {
-                background-color: #3a4baf;
-            }
-        """)
+
         save_btn.clicked.connect(self.save_settings_from_form)
 
         cancel_btn = QPushButton("取消")
@@ -2601,59 +2129,19 @@ class MainWindow(QMainWindow):
         Returns:
             None
         """
-        # Define button style templates
-        active_style = """
-            QPushButton {
-                background-color: #4a5bbf;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: bold;
-            }
-            QPushButton:hover {
-                background-color: #3a4baf;
-            }
-        """
-
-        inactive_style = """
-            QPushButton {
-                background-color: #e8f0ff;
-                color: #5a6acf;
-                border: 1px solid #d1d8ff;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #d8e8ff;
-            }
-        """
 
         # Update styles
         for btn in [self.home_btn, self.task_list_btn]:
-            if btn == active_button:
-                btn.setStyleSheet(active_style)
-            else:
-                btn.setStyleSheet(inactive_style)
+            # Theme will handle active/inactive visual states.
+            pass
 
         settings_btn = self.findChild(QPushButton, "设置")
         if settings_btn:
-            if settings_btn == active_button:
-                settings_btn.setStyleSheet(active_style)
-            else:
-                settings_btn.setStyleSheet(inactive_style)
+            # Theme will handle active/inactive visual states for settings button.
+            pass
 
 
-def main():
-    """
-    Main function for launching the application.
-
-    Creates and displays the main application window.
-
-    Returns:
-        None
-    """
+if __name__ == "__main__":
     # Set application properties
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
     QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
@@ -2665,7 +2153,3 @@ def main():
 
     # Run application
     sys.exit(app.exec())
-
-
-if __name__ == "__main__":
-    main()

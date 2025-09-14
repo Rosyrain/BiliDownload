@@ -13,7 +13,7 @@ import os
 from pathlib import Path
 from typing import Any, Dict
 
-from .logger import get_logger
+from src.core.logger import get_logger
 
 
 class ConfigManager:

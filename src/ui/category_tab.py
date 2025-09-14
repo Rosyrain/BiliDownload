@@ -4,9 +4,9 @@
 
 import os
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import (
     QComboBox,
     QGridLayout,
     QGroupBox,
@@ -25,16 +25,20 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+# Fluent Widgets 导入
+from qfluentwidgets import Theme, setTheme
+
 from src.core.config_manager import ConfigManager
 
 
 class CategoryTab(QWidget):
     """分类管理标签页"""
 
-    def __init__(self, config_manager: ConfigManager):
-        super().__init__()
-        self.config_manager = config_manager
-
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.setObjectName("CategoryTab")
+        setTheme(Theme.LIGHT)
+        self.config_manager = ConfigManager()
         self.init_ui()
         self.refresh_categories()
 
@@ -43,104 +47,6 @@ class CategoryTab(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
-
-        # 应用柔和主题样式
-        self.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                color: #5a6acf;
-                border: 2px solid #e1e8ff;
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 8px;
-                background: #fafbff;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 8px 0 8px;
-                background-color: #fafbff;
-            }
-            QLineEdit {
-                padding: 8px;
-                border: 1px solid #d1d8ff;
-                border-radius: 6px;
-                background: white;
-                color: #4a5bbf;
-                font-size: 12px;
-            }
-            QLineEdit:focus {
-                border-color: #4a5bbf;
-                background: #fefeff;
-            }
-            QPushButton {
-                background-color: #e8f0ff;
-                color: #5a6acf;
-                border: 1px solid #d1d8ff;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 500;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #d8e8ff;
-                border-color: #b8c8ff;
-            }
-            QPushButton:pressed {
-                background-color: #c8d8ff;
-            }
-            QTreeWidget {
-                border: 1px solid #e1e8ff;
-                border-radius: 6px;
-                background: white;
-                color: #4a5bbf;
-            }
-            QTreeWidget::item {
-                padding: 6px;
-                border-bottom: 1px solid #f8f9ff;
-            }
-            QTreeWidget::item:selected {
-                background-color: #e8f0ff;
-                color: #4a5bbf;
-            }
-            QTreeWidget::item:hover {
-                background-color: #f8f9ff;
-            }
-            QTextEdit {
-                border: 1px solid #e1e8ff;
-                border-radius: 6px;
-                background: white;
-                color: #4a5bbf;
-                font-family: 'Monaco', 'Consolas', monospace;
-                font-size: 11px;
-            }
-            QLabel {
-                color: #4a5bbf;
-                font-weight: 500;
-            }
-            QComboBox {
-                padding: 6px;
-                border: 1px solid #d1d8ff;
-                border-radius: 6px;
-                background: white;
-                color: #4a5bbf;
-                font-size: 12px;
-            }
-            QComboBox:focus {
-                border-color: #4a5bbf;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 20px;
-            }
-            QComboBox::down-arrow {
-                image: none;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 5px solid #5a6acf;
-                margin-right: 5px;
-            }
-        """)
 
         # 创建分割器
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -164,12 +70,6 @@ class CategoryTab(QWidget):
 
         # 标题
         title_label = QLabel("分类树")
-        title_label.setStyleSheet("""
-            font-size: 18px;
-            font-weight: bold;
-            color: #0078d4;
-            margin-bottom: 10px;
-        """)
         layout.addWidget(title_label)
 
         # 分类树
@@ -182,39 +82,16 @@ class CategoryTab(QWidget):
         )
         self.category_tree.itemClicked.connect(self.on_category_selected)
 
-        # 设置样式
-        self.category_tree.setStyleSheet("""
-            QTreeWidget {
-                border: 1px solid #dee2e6;
-                border-radius: 4px;
-                background-color: white;
-            }
-            QTreeWidget::item {
-                padding: 6px;
-                border-bottom: 1px solid #f8f9fa;
-            }
-            QTreeWidget::item:selected {
-                background-color: #0078d4;
-                color: white;
-            }
-            QTreeWidget::item:hover {
-                background-color: #f8f9fa;
-            }
-        """)
-
         layout.addWidget(self.category_tree)
 
         # 操作按钮
         button_layout = QHBoxLayout()
-
         self.add_category_btn = QPushButton("添加分类")
         self.add_category_btn.clicked.connect(self.add_category)
         button_layout.addWidget(self.add_category_btn)
-
         self.refresh_btn = QPushButton("刷新")
         self.refresh_btn.clicked.connect(self.refresh_categories)
         button_layout.addWidget(self.refresh_btn)
-
         button_layout.addStretch()
         layout.addLayout(button_layout)
 
@@ -227,107 +104,66 @@ class CategoryTab(QWidget):
 
         # 标题
         title_label = QLabel("分类详情")
-        title_label.setStyleSheet("""
-            font-size: 18px;
-            font-weight: bold;
-            color: #0078d4;
-            margin-bottom: 10px;
-        """)
         layout.addWidget(title_label)
 
         # 分类信息
         info_group = QGroupBox("基本信息")
         info_layout = QGridLayout(info_group)
-
         info_layout.addWidget(QLabel("分类名称:"), 0, 0)
         self.category_name_input = QLineEdit()
         self.category_name_input.setPlaceholderText("分类名称")
         info_layout.addWidget(self.category_name_input, 0, 1)
-
         info_layout.addWidget(QLabel("父分类:"), 1, 0)
         self.parent_category_combo = QComboBox()
         self.parent_category_combo.addItem("无")
         info_layout.addWidget(self.parent_category_combo, 1, 1)
-
         info_layout.addWidget(QLabel("描述:"), 2, 0)
         self.description_input = QLineEdit()
         self.description_input.setPlaceholderText("分类描述（可选）")
         info_layout.addWidget(self.description_input, 2, 1)
-
         info_layout.addWidget(QLabel("路径:"), 3, 0)
         self.path_label = QLabel("")
-        self.path_label.setStyleSheet("""
-            QLabel {
-                background-color: #f8f9fa;
-                border: 1px solid #dee2e6;
-                border-radius: 4px;
-                padding: 6px;
-                font-family: "Consolas", "Monaco", monospace;
-                font-size: 11px;
-            }
-        """)
         info_layout.addWidget(self.path_label, 3, 1)
-
         layout.addWidget(info_group)
 
         # 操作按钮
         operation_group = QGroupBox("操作")
         operation_layout = QHBoxLayout(operation_group)
-
         self.save_btn = QPushButton("保存修改")
         self.save_btn.clicked.connect(self.save_category)
         self.save_btn.setEnabled(False)
         operation_layout.addWidget(self.save_btn)
-
         self.delete_btn = QPushButton("删除分类")
         self.delete_btn.clicked.connect(self.delete_category)
         self.delete_btn.setEnabled(False)
         operation_layout.addWidget(self.delete_btn)
-
         self.open_folder_btn = QPushButton("打开文件夹")
         self.open_folder_btn.clicked.connect(self.open_category_folder)
         self.open_folder_btn.setEnabled(False)
         operation_layout.addWidget(self.open_folder_btn)
-
         operation_layout.addStretch()
         layout.addWidget(operation_group)
 
         # 分类统计
         stats_group = QGroupBox("统计信息")
         stats_layout = QGridLayout(stats_group)
-
         self.file_count_label = QLabel("文件数量: 0")
         stats_layout.addWidget(self.file_count_label, 0, 0)
-
         self.folder_count_label = QLabel("子文件夹: 0")
         stats_layout.addWidget(self.folder_count_label, 0, 1)
-
         self.total_size_label = QLabel("总大小: 0 B")
         stats_layout.addWidget(self.total_size_label, 1, 0)
-
         self.created_time_label = QLabel("创建时间: -")
         stats_layout.addWidget(self.created_time_label, 1, 1)
-
         layout.addWidget(stats_group)
 
         # 子分类列表
         children_group = QGroupBox("子分类")
         children_layout = QVBoxLayout(children_group)
-
         self.children_list = QTextEdit()
         self.children_list.setReadOnly(True)
         self.children_list.setMaximumHeight(100)
-        self.children_list.setStyleSheet("""
-            QTextEdit {
-                background-color: #f8f9fa;
-                border: 1px solid #dee2e6;
-                border-radius: 4px;
-                font-family: "Consolas", "Monaco", monospace;
-                font-size: 11px;
-            }
-        """)
         children_layout.addWidget(self.children_list)
-
         layout.addWidget(children_group)
 
         layout.addStretch()
@@ -436,7 +272,7 @@ class CategoryTab(QWidget):
     def update_category_stats(self, category_name):
         """更新分类统计信息"""
         try:
-            from ..core.file_manager import FileManager
+            from src.core.file_manager import FileManager
 
             category_path = self.config_manager.get_category_path(category_name)
             if not category_path or not os.path.exists(category_path):
@@ -589,7 +425,7 @@ class CategoryTab(QWidget):
 
         if category_path and os.path.exists(category_path):
             try:
-                from ..core.file_manager import FileManager
+                from src.core.file_manager import FileManager
 
                 file_manager = FileManager(category_path)
                 file_manager.open_folder(category_path)
@@ -672,3 +508,19 @@ class CategoryTab(QWidget):
                         QMessageBox.warning(self, "失败", f"子分类 '{name}' 创建失败")
                 except Exception as e:
                     QMessageBox.critical(self, "错误", f"创建子分类时出错: {str(e)}")
+
+
+if __name__ == "__main__":
+    import sys
+
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication(sys.argv)
+    app.setApplicationName("BiliDownload - 分类管理测试")
+    app.setApplicationVersion("1.0.0")
+
+    window = CategoryTab()
+    window.resize(1000, 600)
+    window.show()
+
+    sys.exit(app.exec())

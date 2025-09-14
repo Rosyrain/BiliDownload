@@ -13,9 +13,9 @@ import random
 import re
 from datetime import datetime
 
-from PyQt6.QtCore import Qt, QThread, QTimer, pyqtSignal
-from PyQt6.QtGui import QFont
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QThread, QTimer, Signal
+from PySide6.QtGui import QFont
+from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
     QCheckBox,
@@ -35,7 +35,12 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+# Fluent Widgets 导入
+from qfluentwidgets import Theme, setTheme
+
+from src.core.config_manager import ConfigManager
 from src.core.downloader import BiliDownloader
+from src.core.file_manager import FileManager
 from src.core.logger import get_logger
 
 
@@ -51,9 +56,9 @@ class DownloadWorker(QThread):
         log_message (pyqtSignal): Emitted with (str message) for log updates.
     """
 
-    progress_updated = pyqtSignal(int, str)
-    download_finished = pyqtSignal(bool, str)
-    log_message = pyqtSignal(str)
+    progress_updated = Signal(int, str)
+    download_finished = Signal(bool, str)
+    log_message = Signal(str)
 
     def __init__(
         self, url, save_path, ffmpeg_path=None, is_series=False, download_type="full"
@@ -69,6 +74,7 @@ class DownloadWorker(QThread):
             download_type (str): Type of download ("full", "audio", "video").
         """
         super().__init__()
+        self.setObjectName("DownloadWorker")
         self.url = url
         self.save_path = save_path
         self.ffmpeg_path = ffmpeg_path
@@ -119,12 +125,12 @@ class DownloadTab(QWidget):
     """
 
     # 定义信号
-    task_created = pyqtSignal(
+    task_created = Signal(
         str, str, str, str, str
     )  # task_id, url, title, save_path, download_type
-    show_task_list_requested = pyqtSignal()  # 请求显示任务列表
+    show_task_list_requested = Signal()  # 请求显示任务列表
 
-    def __init__(self, config_manager, file_manager=None, logger=None):
+    def __init__(self, parent=None):
         """
         Initialize the download tab.
 
@@ -133,11 +139,14 @@ class DownloadTab(QWidget):
             file_manager (optional): File manager instance for file operations.
             logger (optional): Logger instance for logging.
         """
-        super().__init__()
-        self.config_manager = config_manager
-        self.file_manager = file_manager
-        self.logger = logger or get_logger(__name__)
+
+        super().__init__(parent=parent)
+        self.setObjectName("DownloadTab")
+        setTheme(Theme.LIGHT)
+        self.logger = get_logger(__name__)
         self.download_worker = None
+        self.config_manager = ConfigManager()
+        self.file_manager = FileManager()
 
         # Auto-fetch title timer
         self.auto_fetch_timer = QTimer()
@@ -169,38 +178,6 @@ class DownloadTab(QWidget):
         Returns:
             None
         """
-        # Apply soft theme styles
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #f8f9ff;
-                color: #4a5bbf;
-            }
-            QLineEdit, QTextEdit {
-                border: 1px solid #e1e8ff;
-                border-radius: 6px;
-                padding: 8px;
-                background-color: white;
-            }
-            QPushButton {
-                background-color: #e8f0ff;
-                color: #5a6acf;
-                border: 1px solid #d1d8ff;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 500;
-            }
-            QPushButton:hover {
-                background-color: #d8e8ff;
-            }
-            QGroupBox {
-                font-weight: bold;
-                border: 2px solid #e1e8ff;
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 8px;
-            }
-        """)
-
         layout = QVBoxLayout(self)
         layout.setContentsMargins(12, 12, 12, 12)
         layout.setSpacing(10)
@@ -258,29 +235,6 @@ class DownloadTab(QWidget):
         tab_layout.setContentsMargins(0, 0, 0, 0)
         tab_layout.setSpacing(8)
 
-        # Create tab style
-        tab_style = """
-            QPushButton {
-                background-color: #e8f0ff;
-                color: #5a6acf;
-                border: 1px solid #d1d8ff;
-                border-radius: 15px;
-                padding: 6px 12px;
-                font-size: 13px;
-                min-width: 100px;
-                min-height: 30px;
-                max-height: 30px;
-            }
-            QPushButton:hover {
-                background-color: #d8e8ff;
-            }
-            QPushButton:checked {
-                background-color: #4a5bbf;
-                color: white;
-                border: 1px solid #4a5bbf;
-            }
-        """
-
         # Create button group for tabs
         self.tab_group = QButtonGroup(self)
         self.tab_group.setExclusive(True)
@@ -289,14 +243,12 @@ class DownloadTab(QWidget):
         self.single_video_tab = QPushButton("单个视频")
         self.single_video_tab.setCheckable(True)
         self.single_video_tab.setChecked(True)
-        self.single_video_tab.setStyleSheet(tab_style)
         self.tab_group.addButton(self.single_video_tab, 1)
         tab_layout.addWidget(self.single_video_tab)
 
         # Series video tab
         self.series_video_tab = QPushButton("系列视频")
         self.series_video_tab.setCheckable(True)
-        self.series_video_tab.setStyleSheet(tab_style)
         self.tab_group.addButton(self.series_video_tab, 2)
         tab_layout.addWidget(self.series_video_tab)
 
@@ -329,24 +281,9 @@ class DownloadTab(QWidget):
         download_btn_layout.setContentsMargins(0, 10, 0, 10)
 
         self.download_btn = QPushButton("开始下载")
-        self.download_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4a5bbf;
-                color: white;
-                font-weight: bold;
-                padding: 12px 24px;
-                font-size: 16px;
-                min-height: 48px;
-                min-width: 180px;
-                border-radius: 8px;
-            }
-            QPushButton:hover {
-                background-color: #3a4baf;
-            }
-            QPushButton:disabled {
-                background-color: #a0a0a0;
-            }
-        """)
+        # 使用默认样式并通过最小尺寸让按钮更显眼
+        self.download_btn.setMinimumHeight(48)
+        self.download_btn.setMinimumWidth(180)
         self.download_btn.clicked.connect(self.start_download)
 
         # Center the button with stretch on both sides
@@ -408,32 +345,6 @@ class DownloadTab(QWidget):
         self.single_download_type_combo = QComboBox()
         self.single_download_type_combo.setMinimumWidth(120)  # 增加宽度确保内容完全显示
         self.single_download_type_combo.setMinimumHeight(30)  # 设置最小高度
-        self.single_download_type_combo.setStyleSheet("""
-            QComboBox {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 4px 8px;
-                background-color: white;
-                min-width: 120px;
-            }
-            QComboBox::drop-down {
-                subcontrol-origin: padding;
-                subcontrol-position: center right;
-                width: 20px;
-                border-left: none;
-            }
-            QComboBox QAbstractItemView {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                background-color: white;
-                selection-background-color: #e6f2ff;
-                selection-color: #409eff;
-                padding: 4px;
-            }
-        """)
-        self.single_download_type_combo.addItem("完整视频 (视频+音频)", "full")
-        self.single_download_type_combo.addItem("仅音频", "audio")
-        self.single_download_type_combo.addItem("无声视频", "video")
         type_layout.addWidget(self.single_download_type_combo)
 
         # FFmpeg状态
@@ -505,32 +416,6 @@ class DownloadTab(QWidget):
         self.series_download_type_combo = QComboBox()
         self.series_download_type_combo.setMinimumWidth(120)  # 增加宽度确保内容完全显示
         self.series_download_type_combo.setMinimumHeight(30)  # 设置最小高度
-        self.series_download_type_combo.setStyleSheet("""
-            QComboBox {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 4px 8px;
-                background-color: white;
-                min-width: 120px;
-            }
-            QComboBox::drop-down {
-                subcontrol-origin: padding;
-                subcontrol-position: center right;
-                width: 20px;
-                border-left: none;
-            }
-            QComboBox QAbstractItemView {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                background-color: white;
-                selection-background-color: #e6f2ff;
-                selection-color: #409eff;
-                padding: 4px;
-            }
-        """)
-        self.series_download_type_combo.addItem("完整视频 (视频+音频)", "full")
-        self.series_download_type_combo.addItem("仅音频", "audio")
-        self.series_download_type_combo.addItem("无声视频", "video")
         type_layout.addWidget(self.series_download_type_combo)
 
         # FFmpeg状态
@@ -568,16 +453,6 @@ class DownloadTab(QWidget):
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
         self.log_text.setMinimumHeight(120)
-        self.log_text.setStyleSheet("""
-            QTextEdit {
-                background-color: #ffffff;
-                border: 1px solid #e1e8ff;
-                border-radius: 6px;
-                padding: 8px;
-                font-family: monospace;
-                min-height: 120px;
-            }
-        """)
         layout.addWidget(self.log_text, 1)  # Give it stretch factor
 
         # Clear log button
@@ -1110,20 +985,16 @@ class DownloadTab(QWidget):
                 and os.access(ffmpeg_path, os.X_OK)
             ):
                 self.ffmpeg_status_label.setText("FFmpeg: 可用")
-                self.ffmpeg_status_label.setStyleSheet("color: green;")
 
                 # 更新系列视频标签页的FFmpeg状态
                 if hasattr(self, "series_ffmpeg_status_label"):
                     self.series_ffmpeg_status_label.setText("FFmpeg: 可用")
-                    self.series_ffmpeg_status_label.setStyleSheet("color: green;")
             else:
                 self.ffmpeg_status_label.setText("FFmpeg: 不可用")
-                self.ffmpeg_status_label.setStyleSheet("color: red;")
 
                 # 更新系列视频标签页的FFmpeg状态
                 if hasattr(self, "series_ffmpeg_status_label"):
                     self.series_ffmpeg_status_label.setText("FFmpeg: 不可用")
-                    self.series_ffmpeg_status_label.setStyleSheet("color: red;")
 
                 # 如果当前选择的是完整视频但FFmpeg不可用，显示警告
                 if self.single_download_type_combo.currentData() == "full":
@@ -1141,12 +1012,10 @@ class DownloadTab(QWidget):
                     )
         except Exception as e:
             self.ffmpeg_status_label.setText("FFmpeg: 状态未知")
-            self.ffmpeg_status_label.setStyleSheet("color: orange;")
 
             # 更新系列视频标签页的FFmpeg状态
             if hasattr(self, "series_ffmpeg_status_label"):
                 self.series_ffmpeg_status_label.setText("FFmpeg: 状态未知")
-                self.series_ffmpeg_status_label.setStyleSheet("color: orange;")
 
             self.logger.error(f"检查FFmpeg状态时出错: {e}")
 
@@ -1277,3 +1146,18 @@ class DownloadTab(QWidget):
             str: 下载类型 (full/audio/video)
         """
         return combo_box.currentData()
+
+
+if __name__ == "__main__":
+    import sys
+
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication(sys.argv)
+    app.setApplicationName("BiliDownload")
+    app.setApplicationVersion("1.0.0")
+
+    download_tab = DownloadTab()
+    download_tab.show()
+
+    sys.exit(app.exec())

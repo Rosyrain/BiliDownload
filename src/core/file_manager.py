@@ -14,7 +14,7 @@ import shutil
 import subprocess
 from typing import Dict, List
 
-from .logger import get_logger
+from src.core.logger import get_logger
 
 
 class FileManager:

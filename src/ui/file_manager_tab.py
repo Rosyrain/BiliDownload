@@ -9,9 +9,9 @@ basic file operations.
 import os
 from datetime import datetime
 
-from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QAction
+from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
     QGroupBox,
@@ -30,6 +30,9 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+# Fluent Widgets 导入
+from qfluentwidgets import Theme, setTheme
+
 from src.core.config_manager import ConfigManager
 from src.core.file_manager import FileManager
 
@@ -43,18 +46,20 @@ class FileManagerTab(QWidget):
         current_directory (str): Absolute path of the directory currently displayed.
     """
 
-    def __init__(self, file_manager: FileManager, config_manager: ConfigManager):
+    def __init__(self, parent=None):
         """Initialize the FileManagerTab widget.
 
         Args:
             file_manager : Abstraction over file operations (list, open, delete, etc.).
             config_manager : Accessor for download path and category paths.
         """
-        super().__init__()
-        self.file_manager = file_manager
-        self.config_manager = config_manager
-        self.current_directory = self.config_manager.get_download_path()
 
+        super().__init__(parent=parent)
+        self.setObjectName("FileManagerTab")
+        setTheme(Theme.LIGHT)
+        self.file_manager = FileManager()
+        self.config_manager = ConfigManager()
+        self.current_directory = self.config_manager.get_download_path()
         self.init_ui()
         self.refresh_files()
 
@@ -68,125 +73,7 @@ class FileManagerTab(QWidget):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
 
-        # 应用柔和主题样式
-        self.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                color: #5a6acf;
-                border: 2px solid #e1e8ff;
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 8px;
-                background: #fafbff;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 8px 0 8px;
-                background-color: #fafbff;
-            }
-            QLineEdit {
-                padding: 8px;
-                border: 1px solid #d1d8ff;
-                border-radius: 6px;
-                background: white;
-                color: #4a5bbf;
-                font-size: 12px;
-            }
-            QLineEdit:focus {
-                border-color: #4a5bbf;
-                background: #fefeff;
-            }
-            QPushButton {
-                background-color: #e8f0ff;
-                color: #5a6acf;
-                border: 1px solid #d1d8ff;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 500;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #d8e8ff;
-                border-color: #b8c8ff;
-            }
-            QPushButton:pressed {
-                background-color: #c8d8ff;
-            }
-            QTableWidget {
-                border: 1px solid #e1e8ff;
-                border-radius: 6px;
-                background: white;
-                gridline-color: #f0f4ff;
-                selection-background-color: #e8f0ff;
-                selection-color: #4a5bbf;
-            }
-            QHeaderView::section {
-                background-color: #f0f4ff;
-                color: #5a6acf;
-                padding: 8px;
-                border: none;
-                border-right: 1px solid #e1e8ff;
-                border-bottom: 1px solid #e1e8ff;
-                font-weight: bold;
-                font-size: 12px;
-            }
-            QTableWidget::item {
-                padding: 6px;
-                border-bottom: 1px solid #f8f9ff;
-                color: #4a5bbf;
-            }
-            QTableWidget::item:selected {
-                background-color: #e8f0ff;
-                color: #4a5bbf;
-            }
-            QTableWidget::item:hover {
-                background-color: #f8f9ff;
-            }
-            QLabel {
-                color: #4a5bbf;
-                font-weight: 500;
-            }
-            QComboBox {
-                padding: 6px;
-                border: 1px solid #d1d8ff;
-                border-radius: 6px;
-                background: white;
-                color: #4a5bbf;
-                font-size: 12px;
-            }
-            QComboBox:focus {
-                border-color: #4a5bbf;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 20px;
-            }
-            QComboBox::down-arrow {
-                image: none;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 5px solid #5a6acf;
-                margin-right: 5px;
-            }
-            QTreeWidget {
-                border: 1px solid #e1e8ff;
-                border-radius: 6px;
-                background: white;
-                color: #4a5bbf;
-            }
-            QTreeWidget::item {
-                padding: 6px;
-                border-bottom: 1px solid #f8f9ff;
-            }
-            QTreeWidget::item:selected {
-                background-color: #e8f0ff;
-                color: #4a5bbf;
-            }
-            QTreeWidget::item:hover {
-                background-color: #f8f9ff;
-            }
-        """)
+        # ...existing code...
 
         # 创建分割器
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -218,12 +105,7 @@ class FileManagerTab(QWidget):
 
         # 标题
         title_label = QLabel("目录导航")
-        title_label.setStyleSheet("""
-            font-size: 16px;
-            font-weight: bold;
-            color: #0078d4;
-            margin-bottom: 10px;
-        """)
+
         layout.addWidget(title_label)
 
         # 当前路径显示
@@ -232,16 +114,7 @@ class FileManagerTab(QWidget):
 
         self.path_label = QLabel(self.current_directory)
         self.path_label.setWordWrap(True)
-        self.path_label.setStyleSheet("""
-            QLabel {
-                background-color: #f8f9fa;
-                border: 1px solid #dee2e6;
-                border-radius: 4px;
-                padding: 8px;
-                font-family: "Consolas", "Monaco", monospace;
-                font-size: 11px;
-            }
-        """)
+
         path_layout.addWidget(self.path_label)
 
         # 路径操作按钮
@@ -305,11 +178,7 @@ class FileManagerTab(QWidget):
         header_layout = QHBoxLayout()
 
         title_label = QLabel("文件列表")
-        title_label.setStyleSheet("""
-            font-size: 16px;
-            font-weight: bold;
-            color: #0078d4;
-        """)
+
         header_layout.addWidget(title_label)
 
         header_layout.addStretch()
@@ -458,20 +327,6 @@ class FileManagerTab(QWidget):
                 open_btn.clicked.connect(
                     lambda checked, path=file_info["path"]: self.open_file(path)
                 )
-
-            open_btn.setStyleSheet("""
-                QPushButton {
-                    background-color: #0078d4;
-                    color: white;
-                    border: none;
-                    padding: 4px 8px;
-                    border-radius: 3px;
-                    font-size: 11px;
-                }
-                QPushButton:hover {
-                    background-color: #106ebe;
-                }
-            """)
 
             self.file_table.setCellWidget(row, 4, open_btn)
 
@@ -733,7 +588,7 @@ class FileManagerTab(QWidget):
         Returns:
             None
         """
-        from PyQt6.QtWidgets import QApplication
+        from PySide6.QtWidgets import QApplication
 
         clipboard = QApplication.clipboard()
         clipboard.setText(file_path)
@@ -766,3 +621,19 @@ class FileManagerTab(QWidget):
                     QMessageBox.warning(self, "失败", f"'{file_name}' 删除失败")
             except Exception as e:
                 QMessageBox.critical(self, "错误", f"删除文件时出错: {str(e)}")
+
+
+if __name__ == "__main__":
+    import sys
+
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication(sys.argv)
+    app.setApplicationName("BiliDownload - 文件管理测试")
+    app.setApplicationVersion("1.0.0")
+
+    window = FileManagerTab()
+    window.resize(1200, 800)
+    window.show()
+
+    sys.exit(app.exec())

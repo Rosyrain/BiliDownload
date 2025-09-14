@@ -4,7 +4,7 @@
 
 import os
 
-from PyQt6.QtWidgets import (
+from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
     QFileDialog,
@@ -22,16 +22,20 @@ from PyQt6.QtWidgets import (
     QWidget,
 )
 
+# Fluent Widgets 导入
+from qfluentwidgets import Theme, setTheme
+
 from src.core.config_manager import ConfigManager
 
 
 class SettingsTab(QWidget):
     """设置标签页"""
 
-    def __init__(self, config_manager: ConfigManager):
-        super().__init__()
-        self.config_manager = config_manager
-
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+        self.setObjectName("SettingsTab")
+        setTheme(Theme.LIGHT)
+        self.config_manager = ConfigManager()
         self.init_ui()
         self.load_settings()
 
@@ -40,153 +44,6 @@ class SettingsTab(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
-
-        # 应用柔和主题样式
-        self.setStyleSheet("""
-            QTabWidget::pane {
-                border: 1px solid #e1e8ff;
-                background: white;
-                border-radius: 8px;
-            }
-            QTabBar::tab {
-                background: #f0f4ff;
-                padding: 12px 20px;
-                margin-right: 4px;
-                border: 1px solid #e1e8ff;
-                border-bottom: none;
-                border-radius: 8px 8px 0 0;
-                font-weight: bold;
-                color: #5a6acf;
-                min-width: 120px;
-            }
-            QTabBar::tab:selected {
-                background: white;
-                border-bottom: 1px solid white;
-                color: #4a5bbf;
-                font-weight: bold;
-            }
-            QTabBar::tab:hover {
-                background: #e8f0ff;
-                color: #4a5bbf;
-            }
-            QGroupBox {
-                font-weight: bold;
-                color: #5a6acf;
-                border: 2px solid #e1e8ff;
-                border-radius: 8px;
-                margin-top: 12px;
-                padding-top: 8px;
-                background: #fafbff;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 12px;
-                padding: 0 8px 0 8px;
-                background-color: #fafbff;
-            }
-            QLineEdit {
-                padding: 8px;
-                border: 1px solid #d1d8ff;
-                border-radius: 6px;
-                background: white;
-                color: #4a5bbf;
-                font-size: 12px;
-            }
-            QLineEdit:focus {
-                border-color: #4a5bbf;
-                background: #fefeff;
-            }
-            QPushButton {
-                background-color: #e8f0ff;
-                color: #5a6acf;
-                border: 1px solid #d1d8ff;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 500;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #d8e8ff;
-                border-color: #b8c8ff;
-            }
-            QPushButton:pressed {
-                background-color: #c8d8ff;
-            }
-            QLabel {
-                color: #4a5bbf;
-                font-weight: 500;
-            }
-            QCheckBox {
-                color: #5a6acf;
-                font-weight: 500;
-            }
-            QCheckBox::indicator {
-                width: 16px;
-                height: 16px;
-                border: 2px solid #d1d8ff;
-                border-radius: 3px;
-                background: white;
-            }
-            QCheckBox::indicator:checked {
-                background: #4a5bbf;
-                border-color: #4a5bbf;
-            }
-            QComboBox {
-                padding: 6px;
-                border: 1px solid #d1d8ff;
-                border-radius: 6px;
-                background: white;
-                color: #4a5bbf;
-                font-size: 12px;
-            }
-            QComboBox:focus {
-                border-color: #4a5bbf;
-            }
-            QComboBox::drop-down {
-                border: none;
-                width: 20px;
-            }
-            QComboBox::down-arrow {
-                image: none;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 5px solid #5a6acf;
-                margin-right: 5px;
-            }
-            QSpinBox {
-                padding: 6px;
-                border: 1px solid #d1d8ff;
-                border-radius: 6px;
-                background: white;
-                color: #4a5bbf;
-                font-size: 12px;
-            }
-            QSpinBox:focus {
-                border-color: #4a5bbf;
-            }
-            QSpinBox::up-button, QSpinBox::down-button {
-                width: 16px;
-                border: none;
-                background: #f0f4ff;
-            }
-            QSpinBox::up-button:hover, QSpinBox::down-button:hover {
-                background: #e8f0ff;
-            }
-            QSpinBox::up-arrow {
-                image: none;
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-bottom: 4px solid #5a6acf;
-                margin: 2px;
-            }
-            QSpinBox::down-arrow {
-                image: none;
-                border-left: 4px solid transparent;
-                border-right: 4px solid transparent;
-                border-top: 4px solid #5a6acf;
-                margin: 2px;
-            }
-        """)
 
         # 创建标签页
         self.tab_widget = QTabWidget()
@@ -200,59 +57,23 @@ class SettingsTab(QWidget):
 
         # 底部按钮
         bottom_panel = QFrame()
-        bottom_panel.setStyleSheet("""
-            QFrame {
-                background-color: #f8f9ff;
-                border: 1px solid #e1e8ff;
-                border-radius: 8px;
-                padding: 15px;
-                margin-top: 15px;
-            }
-        """)
+
         bottom_layout = QHBoxLayout(bottom_panel)
 
         # 状态标签
         self.status_label = QLabel("就绪")
-        self.status_label.setStyleSheet(
-            "color: #5a6acf; font-style: italic; font-weight: 500;"
-        )
+
         bottom_layout.addWidget(self.status_label)
 
         bottom_layout.addStretch()
 
         self.reset_btn = QPushButton("🔄 重置为默认")
-        self.reset_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #6c757d;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 10px 20px;
-                font-weight: bold;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #5a6268;
-            }
-        """)
+
         self.reset_btn.clicked.connect(self.reset_to_default)
         bottom_layout.addWidget(self.reset_btn)
 
         self.save_btn = QPushButton("💾 保存设置")
-        self.save_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #4a5bbf;
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 10px 20px;
-                font-weight: bold;
-                font-size: 12px;
-            }
-            QPushButton:hover {
-                background-color: #3a4baf;
-            }
-        """)
+
         self.save_btn.clicked.connect(self.save_settings)
         bottom_layout.addWidget(self.save_btn)
 
@@ -266,273 +87,58 @@ class SettingsTab(QWidget):
 
         # 下载路径设置
         path_group = QGroupBox("📁 下载路径设置")
-        path_group.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                font-size: 14px;
-                color: #495057;
-                border: 2px solid #dee2e6;
-                border-radius: 6px;
-                margin-top: 10px;
-                padding-top: 10px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
-            }
-        """)
         path_layout = QFormLayout(path_group)
-        path_layout.setSpacing(15)
 
-        # 路径输入框和按钮的容器
+        self.download_path_input = QLineEdit()
+        browse_download_btn = QPushButton("📂 浏览")
+        browse_download_btn.clicked.connect(self.browse_download_path)
         path_container = QWidget()
         path_container_layout = QHBoxLayout(path_container)
         path_container_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.download_path_input = QLineEdit()
-        self.download_path_input.setPlaceholderText("选择默认下载目录")
-        self.download_path_input.setReadOnly(True)
-        self.download_path_input.setStyleSheet("""
-            QLineEdit {
-                padding: 8px;
-                border: 2px solid #dee2e6;
-                border-radius: 4px;
-                background: white;
-                font-size: 12px;
-            }
-            QLineEdit:focus {
-                border-color: #0078d4;
-            }
-        """)
-
-        browse_path_btn = QPushButton("📂 浏览")
-        browse_path_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #0078d4;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-                min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #106ebe;
-            }
-        """)
-        browse_path_btn.clicked.connect(self.browse_download_path)
-
         path_container_layout.addWidget(self.download_path_input)
-        path_container_layout.addWidget(browse_path_btn)
-
-        path_layout.addRow("默认下载路径:", path_container)
-
-        # 快速路径按钮
-        quick_path_layout = QHBoxLayout()
-        quick_path_layout.setSpacing(10)
-
-        desktop_btn = QPushButton("🖥️ 桌面")
-        desktop_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #6c757d;
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 4px;
-                font-size: 11px;
-            }
-            QPushButton:hover {
-                background-color: #5a6268;
-            }
-        """)
-        desktop_btn.clicked.connect(lambda: self.set_quick_path("desktop"))
-
-        downloads_btn = QPushButton("📥 下载文件夹")
-        downloads_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #6c757d;
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 4px;
-                font-size: 11px;
-            }
-            QPushButton:hover {
-                background-color: #5a6268;
-            }
-        """)
-        downloads_btn.clicked.connect(lambda: self.set_quick_path("downloads"))
-
-        custom_btn = QPushButton("📁 自定义")
-        custom_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #6c757d;
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 4px;
-                font-size: 11px;
-            }
-            QPushButton:hover {
-                background-color: #5a6268;
-            }
-        """)
-        custom_btn.clicked.connect(self.browse_download_path)
-
-        quick_path_layout.addWidget(desktop_btn)
-        quick_path_layout.addWidget(downloads_btn)
-        quick_path_layout.addWidget(custom_btn)
-        quick_path_layout.addStretch()
-
-        path_layout.addRow("快速选择:", quick_path_layout)
+        path_container_layout.addWidget(browse_download_btn)
+        path_layout.addRow("下载路径:", path_container)
 
         layout.addWidget(path_group)
 
-        # FFmpeg设置
-        ffmpeg_group = QGroupBox("🎬 FFmpeg设置")
-        ffmpeg_group.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                font-size: 14px;
-                color: #495057;
-                border: 2px solid #dee2e6;
-                border-radius: 6px;
-                margin-top: 10px;
-                padding-top: 10px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
-            }
-        """)
+        # FFmpeg路径设置
+        ffmpeg_group = QGroupBox("FFmpeg 设置")
         ffmpeg_layout = QFormLayout(ffmpeg_group)
-        ffmpeg_layout.setSpacing(15)
 
-        # FFmpeg路径输入框和按钮的容器
+        self.ffmpeg_path_input = QLineEdit()
+        browse_ffmpeg_btn = QPushButton("📂 浏览")
+        browse_ffmpeg_btn.clicked.connect(self.browse_ffmpeg_path)
         ffmpeg_container = QWidget()
         ffmpeg_container_layout = QHBoxLayout(ffmpeg_container)
         ffmpeg_container_layout.setContentsMargins(0, 0, 0, 0)
-
-        self.ffmpeg_path_input = QLineEdit()
-        self.ffmpeg_path_input.setPlaceholderText("选择FFmpeg可执行文件路径")
-        self.ffmpeg_path_input.setReadOnly(True)
-        self.ffmpeg_path_input.setStyleSheet("""
-            QLineEdit {
-                padding: 8px;
-                border: 2px solid #dee2e6;
-                border-radius: 4px;
-                background: white;
-                font-size: 12px;
-            }
-            QLineEdit:focus {
-                border-color: #0078d4;
-            }
-        """)
-
-        browse_ffmpeg_btn = QPushButton("📂 浏览")
-        browse_ffmpeg_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #0078d4;
-                color: white;
-                border: none;
-                padding: 8px 16px;
-                border-radius: 4px;
-                font-weight: bold;
-                min-width: 80px;
-            }
-            QPushButton:hover {
-                background-color: #106ebe;
-            }
-        """)
-        browse_ffmpeg_btn.clicked.connect(self.browse_ffmpeg_path)
-
         ffmpeg_container_layout.addWidget(self.ffmpeg_path_input)
         ffmpeg_container_layout.addWidget(browse_ffmpeg_btn)
-
         ffmpeg_layout.addRow("FFmpeg路径:", ffmpeg_container)
 
-        # FFmpeg检测状态
         status_container = QWidget()
         status_layout = QHBoxLayout(status_container)
         status_layout.setContentsMargins(0, 0, 0, 0)
 
         self.ffmpeg_status_label = QLabel("未检测")
-        self.ffmpeg_status_label.setStyleSheet("color: #666666; font-weight: bold;")
-
         self.ffmpeg_test_btn = QPushButton("🧪 测试")
-        self.ffmpeg_test_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #17a2b8;
-                color: white;
-                border: none;
-                padding: 6px 12px;
-                border-radius: 4px;
-                font-size: 11px;
-            }
-            QPushButton:hover {
-                background-color: #138496;
-            }
-        """)
         self.ffmpeg_test_btn.clicked.connect(self.test_ffmpeg)
-
         status_layout.addWidget(self.ffmpeg_status_label)
         status_layout.addWidget(self.ffmpeg_test_btn)
         status_layout.addStretch()
-
         ffmpeg_layout.addRow("状态:", status_container)
 
         layout.addWidget(ffmpeg_group)
 
         # 分类设置
         category_group = QGroupBox("🏷️ 分类设置")
-        category_group.setStyleSheet("""
-            QGroupBox {
-                font-weight: bold;
-                font-size: 14px;
-                color: #495057;
-                border: 2px solid #dee2e6;
-                border-radius: 6px;
-                margin-top: 10px;
-                padding-top: 10px;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px 0 5px;
-            }
-        """)
         category_layout = QFormLayout(category_group)
         category_layout.setSpacing(15)
 
         self.auto_create_categories_cb = QCheckBox("自动创建分类文件夹")
-        self.auto_create_categories_cb.setStyleSheet("""
-            QCheckBox {
-                font-size: 13px;
-                color: #495057;
-            }
-            QCheckBox::indicator {
-                width: 18px;
-                height: 18px;
-            }
-        """)
         category_layout.addRow("", self.auto_create_categories_cb)
 
         self.default_category_combo = QComboBox()
         self.default_category_combo.addItem("未分类")
-        self.default_category_combo.setStyleSheet("""
-            QComboBox {
-                padding: 6px;
-                border: 2px solid #dee2e6;
-                border-radius: 4px;
-                background: white;
-                min-width: 150px;
-            }
-            QComboBox:focus {
-                border-color: #0078d4;
-            }
-        """)
         category_layout.addRow("默认分类:", self.default_category_combo)
 
         layout.addWidget(category_group)
@@ -544,6 +150,7 @@ class SettingsTab(QWidget):
         """创建下载设置标签页"""
         tab = QWidget()
         layout = QVBoxLayout(tab)
+        layout.setContentsMargins(15, 15, 15, 15)
 
         # 下载参数设置
         download_group = QGroupBox("下载参数")
@@ -927,15 +534,12 @@ class SettingsTab(QWidget):
         ffmpeg_path = self.ffmpeg_path_input.text()
         if not ffmpeg_path:
             self.ffmpeg_status_label.setText("未设置")
-            self.ffmpeg_status_label.setStyleSheet("color: #666666;")
             return
 
         if os.path.exists(ffmpeg_path):
             self.ffmpeg_status_label.setText("已找到")
-            self.ffmpeg_status_label.setStyleSheet("color: #28a745;")
         else:
             self.ffmpeg_status_label.setText("文件不存在")
-            self.ffmpeg_status_label.setStyleSheet("color: #dc3545;")
 
     def toggle_proxy_settings(self, enabled):
         """切换代理设置启用状态"""
@@ -980,17 +584,21 @@ class SettingsTab(QWidget):
 
             if result.returncode == 0:
                 self.ffmpeg_status_label.setText("✅ 正常")
-                self.ffmpeg_status_label.setStyleSheet(
-                    "color: #28a745; font-weight: bold;"
-                )
                 self.status_label.setText("FFmpeg测试成功")
             else:
                 self.ffmpeg_status_label.setText("❌ 异常")
-                self.ffmpeg_status_label.setStyleSheet(
-                    "color: #dc3545; font-weight: bold;"
-                )
                 self.status_label.setText("FFmpeg测试失败")
         except Exception as e:
             self.ffmpeg_status_label.setText("❌ 错误")
-            self.ffmpeg_status_label.setStyleSheet("color: #dc3545; font-weight: bold;")
             self.status_label.setText(f"FFmpeg测试出错: {str(e)}")
+
+
+if __name__ == "__main__":
+    import sys
+
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication(sys.argv)
+    settings_tab = SettingsTab()
+    settings_tab.show()
+    sys.exit(app.exec())

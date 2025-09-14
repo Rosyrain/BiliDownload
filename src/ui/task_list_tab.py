@@ -10,9 +10,9 @@ import json
 import os
 from datetime import datetime, timedelta
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal
-from PyQt6.QtGui import QBrush, QFont
-from PyQt6.QtWidgets import (
+from PySide6.QtCore import Qt, QTimer, Signal
+from PySide6.QtGui import QBrush, QFont
+from PySide6.QtWidgets import (
     QComboBox,
     QDateEdit,
     QGroupBox,
@@ -28,7 +28,10 @@ from PyQt6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+from qfluentwidgets import Theme, setTheme
 
+from src.core.config_manager import ConfigManager
+from src.core.file_manager import FileManager
 from src.core.logger import get_logger
 
 
@@ -383,9 +386,9 @@ class TaskListTab(QWidget):
     """
 
     # 定义信号
-    task_action_requested = pyqtSignal(str, str)  # 任务ID, 动作
+    task_action_requested = Signal(str, str)  # 任务ID, 动作
 
-    def __init__(self, task_manager, config_manager=None, file_manager=None):
+    def __init__(self, parent=None):
         """
         初始化任务列表标签页
 
@@ -394,10 +397,21 @@ class TaskListTab(QWidget):
             config_manager: 配置管理器实例
             file_manager: 文件管理器实例
         """
-        super().__init__()
-        self.task_manager = task_manager
-        self.config_manager = config_manager
-        self.file_manager = file_manager
+        super().__init__(parent=parent)
+        self.setObjectName("TaskListTab")
+        setTheme(Theme.LIGHT)
+        self.task_manager = TaskManager()
+        self.config_manager = ConfigManager()
+        self.file_manager = FileManager()
+        self.logger = get_logger(__name__)
+        self.current_filter = "all"
+        self.start_date = None
+        self.end_date = None
+        self.task_progress_details = {}
+        self.init_ui()
+        self.refresh_timer = QTimer()
+        self.refresh_timer.timeout.connect(self.refresh_task_list)
+        self.refresh_timer.start(1000)  # 每秒刷新一次
         self.logger = get_logger(__name__)
 
         # 当前显示的任务状态过滤
@@ -476,28 +490,7 @@ class TaskListTab(QWidget):
         self.task_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.task_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.task_table.setAlternatingRowColors(True)
-        self.task_table.setStyleSheet("""
-            QTableWidget {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                background-color: white;
-            }
-            QTableWidget::item:alternate {
-                background-color: #f5f7fa;
-            }
-            QTableWidget::item:selected {
-                background-color: #e6f2ff;
-                color: #409eff;
-            }
-            QHeaderView::section {
-                background-color: #f5f7fa;
-                padding: 5px;
-                border: 1px solid #dcdfe6;
-                border-left: none;
-                border-top: none;
-                font-weight: bold;
-            }
-        """)
+
         main_layout.addWidget(self.task_table)
 
         # 状态栏
@@ -531,28 +524,7 @@ class TaskListTab(QWidget):
         self.status_filter.addItem("已暂停", DownloadTask.STATUS_PAUSED)
         self.status_filter.addItem("已完成", DownloadTask.STATUS_COMPLETED)
         self.status_filter.addItem("失败", DownloadTask.STATUS_FAILED)
-        self.status_filter.setStyleSheet("""
-            QComboBox {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 4px 8px;
-                background-color: white;
-            }
-            QComboBox::drop-down {
-                subcontrol-origin: padding;
-                subcontrol-position: center right;
-                width: 20px;
-                border-left: none;
-            }
-            QComboBox QAbstractItemView {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                background-color: white;
-                selection-background-color: #e6f2ff;
-                selection-color: #409eff;
-                padding: 4px;
-            }
-        """)
+
         self.status_filter.currentIndexChanged.connect(self.on_filter_changed)
         top_filter_layout.addWidget(self.status_filter)
 
@@ -560,17 +532,7 @@ class TaskListTab(QWidget):
         top_filter_layout.addWidget(QLabel("搜索:"))
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("输入关键词搜索...")
-        self.search_input.setStyleSheet("""
-            QLineEdit {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 4px 8px;
-                background-color: white;
-            }
-            QLineEdit:focus {
-                border-color: #409eff;
-            }
-        """)
+
         self.search_input.textChanged.connect(self.on_search_text_changed)
         top_filter_layout.addWidget(self.search_input)
 
@@ -585,28 +547,7 @@ class TaskListTab(QWidget):
         self.time_range_combo.addItem("本月", "this_month")
         self.time_range_combo.addItem("上月", "last_month")
         self.time_range_combo.addItem("自定义", "custom")
-        self.time_range_combo.setStyleSheet("""
-            QComboBox {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 4px 8px;
-                background-color: white;
-            }
-            QComboBox::drop-down {
-                subcontrol-origin: padding;
-                subcontrol-position: center right;
-                width: 20px;
-                border-left: none;
-            }
-            QComboBox QAbstractItemView {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                background-color: white;
-                selection-background-color: #e6f2ff;
-                selection-color: #409eff;
-                padding: 4px;
-            }
-        """)
+
         self.time_range_combo.currentIndexChanged.connect(self.on_time_range_changed)
         top_filter_layout.addWidget(self.time_range_combo)
 
@@ -622,14 +563,7 @@ class TaskListTab(QWidget):
         self.start_date_edit = QDateEdit()
         self.start_date_edit.setCalendarPopup(True)
         self.start_date_edit.setDate(datetime.now().date())
-        self.start_date_edit.setStyleSheet("""
-            QDateEdit {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 4px 8px;
-                background-color: white;
-            }
-        """)
+
         self.start_date_edit.dateChanged.connect(self.on_custom_date_changed)
         custom_date_layout.addWidget(self.start_date_edit)
 
@@ -638,31 +572,13 @@ class TaskListTab(QWidget):
         self.end_date_edit = QDateEdit()
         self.end_date_edit.setCalendarPopup(True)
         self.end_date_edit.setDate(datetime.now().date())
-        self.end_date_edit.setStyleSheet("""
-            QDateEdit {
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 4px 8px;
-                background-color: white;
-            }
-        """)
+
         self.end_date_edit.dateChanged.connect(self.on_custom_date_changed)
         custom_date_layout.addWidget(self.end_date_edit)
 
         # 应用按钮
         apply_date_btn = QPushButton("应用")
-        apply_date_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #409eff;
-                color: white;
-                border: none;
-                border-radius: 4px;
-                padding: 4px 12px;
-            }
-            QPushButton:hover {
-                background-color: #66b1ff;
-            }
-        """)
+
         apply_date_btn.clicked.connect(self.on_custom_date_applied)
         custom_date_layout.addWidget(apply_date_btn)
 
@@ -674,37 +590,13 @@ class TaskListTab(QWidget):
 
         # 刷新按钮
         refresh_btn = QPushButton("刷新")
-        refresh_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f5f7fa;
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 4px 12px;
-                color: #606266;
-            }
-            QPushButton:hover {
-                background-color: #e6f2ff;
-                color: #409eff;
-            }
-        """)
+
         refresh_btn.clicked.connect(self.refresh_task_list)
         button_layout.addWidget(refresh_btn)
 
         # 清理已完成按钮
         clear_completed_btn = QPushButton("清理已完成")
-        clear_completed_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f5f7fa;
-                border: 1px solid #dcdfe6;
-                border-radius: 4px;
-                padding: 4px 12px;
-                color: #606266;
-            }
-            QPushButton:hover {
-                background-color: #ffe6e6;
-                color: #f56c6c;
-            }
-        """)
+
         clear_completed_btn.clicked.connect(self.clear_completed_tasks)
         button_layout.addWidget(clear_completed_btn)
 
@@ -851,20 +743,7 @@ class TaskListTab(QWidget):
                 pause_btn = QPushButton("暂停")
                 pause_btn.setProperty("task_id", task.id)
                 pause_btn.setMinimumHeight(30)
-                pause_btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #f5f7fa;
-                        border: 1px solid #dcdfe6;
-                        border-radius: 4px;
-                        padding: 2px 8px;
-                        color: #606266;
-                        min-height: 30px;
-                    }
-                    QPushButton:hover {
-                        background-color: #e6f2ff;
-                        color: #409eff;
-                    }
-                """)
+
                 pause_btn.clicked.connect(
                     lambda checked, tid=task.id: self.task_action_requested.emit(
                         tid, "pause"
@@ -879,19 +758,7 @@ class TaskListTab(QWidget):
                 start_btn = QPushButton("开始")
                 start_btn.setProperty("task_id", task.id)
                 start_btn.setMinimumHeight(30)
-                start_btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #f0f9eb;
-                        border: 1px solid #c2e7b0;
-                        border-radius: 4px;
-                        padding: 2px 8px;
-                        color: #67c23a;
-                        min-height: 30px;
-                    }
-                    QPushButton:hover {
-                        background-color: #e1f3d8;
-                    }
-                """)
+
                 start_btn.clicked.connect(
                     lambda checked, tid=task.id: self.task_action_requested.emit(
                         tid, "start"
@@ -907,19 +774,7 @@ class TaskListTab(QWidget):
                 retry_btn = QPushButton("重试")
                 retry_btn.setProperty("task_id", task.id)
                 retry_btn.setMinimumHeight(30)
-                retry_btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #f0f9eb;
-                        border: 1px solid #c2e7b0;
-                        border-radius: 4px;
-                        padding: 2px 8px;
-                        color: #67c23a;
-                        min-height: 30px;
-                    }
-                    QPushButton:hover {
-                        background-color: #e1f3d8;
-                    }
-                """)
+
                 retry_btn.clicked.connect(
                     lambda checked, tid=task.id: self.task_action_requested.emit(
                         tid, "retry"
@@ -931,19 +786,7 @@ class TaskListTab(QWidget):
                 delete_btn = QPushButton("删除")
                 delete_btn.setProperty("task_id", task.id)
                 delete_btn.setMinimumHeight(30)
-                delete_btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #fef0f0;
-                        border: 1px solid #fbc4c4;
-                        border-radius: 4px;
-                        padding: 2px 8px;
-                        color: #f56c6c;
-                        min-height: 30px;
-                    }
-                    QPushButton:hover {
-                        background-color: #fde2e2;
-                    }
-                """)
+
                 delete_btn.clicked.connect(
                     lambda checked, tid=task.id: self.task_action_requested.emit(
                         tid, "delete"
@@ -955,19 +798,7 @@ class TaskListTab(QWidget):
                 cancel_btn = QPushButton("取消")
                 cancel_btn.setProperty("task_id", task.id)
                 cancel_btn.setMinimumHeight(30)
-                cancel_btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #fef0f0;
-                        border: 1px solid #fbc4c4;
-                        border-radius: 4px;
-                        padding: 2px 8px;
-                        color: #f56c6c;
-                        min-height: 30px;
-                    }
-                    QPushButton:hover {
-                        background-color: #fde2e2;
-                    }
-                """)
+
                 cancel_btn.clicked.connect(
                     lambda checked, tid=task.id: self.task_action_requested.emit(
                         tid, "cancel"
@@ -980,19 +811,7 @@ class TaskListTab(QWidget):
                 open_folder_btn = QPushButton("打开文件夹")
                 open_folder_btn.setProperty("task_id", task.id)
                 open_folder_btn.setMinimumHeight(30)
-                open_folder_btn.setStyleSheet("""
-                    QPushButton {
-                        background-color: #ecf5ff;
-                        border: 1px solid #b3d8ff;
-                        border-radius: 4px;
-                        padding: 2px 8px;
-                        color: #409eff;
-                        min-height: 30px;
-                    }
-                    QPushButton:hover {
-                        background-color: #d9ecff;
-                    }
-                """)
+
                 open_folder_btn.clicked.connect(
                     lambda checked, tid=task.id: self.open_task_folder(tid)
                 )
@@ -1054,19 +873,7 @@ class TaskListTab(QWidget):
             main_progress.setRange(0, 100)
             main_progress.setValue(int(task.progress))
             main_progress.setFormat(f"总进度: %p% ({task.progress:.1f}%)")
-            main_progress.setStyleSheet("""
-                QProgressBar {
-                    border: 1px solid #dcdfe6;
-                    border-radius: 3px;
-                    text-align: center;
-                    background-color: #f5f7fa;
-                    min-height: 15px;
-                }
-                QProgressBar::chunk {
-                    background-color: #409eff;
-                    border-radius: 2px;
-                }
-            """)
+
             progress_layout.addWidget(main_progress)
 
             # 获取详细进度
@@ -1079,19 +886,7 @@ class TaskListTab(QWidget):
             video_progress.setRange(0, 100)
             video_progress.setValue(int(progress_details.get("video", 0)))
             video_progress.setFormat("视频: %p%")
-            video_progress.setStyleSheet("""
-                QProgressBar {
-                    border: 1px solid #dcdfe6;
-                    border-radius: 2px;
-                    text-align: center;
-                    background-color: #f5f7fa;
-                    min-height: 10px;
-                }
-                QProgressBar::chunk {
-                    background-color: #67c23a;
-                    border-radius: 1px;
-                }
-            """)
+
             progress_layout.addWidget(video_progress)
 
             # 音频进度条
@@ -1099,19 +894,7 @@ class TaskListTab(QWidget):
             audio_progress.setRange(0, 100)
             audio_progress.setValue(int(progress_details.get("audio", 0)))
             audio_progress.setFormat("音频: %p%")
-            audio_progress.setStyleSheet("""
-                QProgressBar {
-                    border: 1px solid #dcdfe6;
-                    border-radius: 2px;
-                    text-align: center;
-                    background-color: #f5f7fa;
-                    min-height: 10px;
-                }
-                QProgressBar::chunk {
-                    background-color: #e6a23c;
-                    border-radius: 1px;
-                }
-            """)
+
             progress_layout.addWidget(audio_progress)
 
         else:
@@ -1124,48 +907,7 @@ class TaskListTab(QWidget):
             progress_widget.setFormat("%.1f%%" % task.progress)
 
             # 根据状态设置不同样式
-            if task.status == task.STATUS_COMPLETED:
-                progress_widget.setStyleSheet("""
-                    QProgressBar {
-                        border: 1px solid #dcdfe6;
-                        border-radius: 3px;
-                        text-align: center;
-                        background-color: #f5f7fa;
-                        min-height: 20px;
-                    }
-                    QProgressBar::chunk {
-                        background-color: #67c23a;
-                        border-radius: 2px;
-                    }
-                """)
-            elif task.status == task.STATUS_FAILED:
-                progress_widget.setStyleSheet("""
-                    QProgressBar {
-                        border: 1px solid #dcdfe6;
-                        border-radius: 3px;
-                        text-align: center;
-                        background-color: #f5f7fa;
-                        min-height: 20px;
-                    }
-                    QProgressBar::chunk {
-                        background-color: #f56c6c;
-                        border-radius: 2px;
-                    }
-                """)
-            else:
-                progress_widget.setStyleSheet("""
-                    QProgressBar {
-                        border: 1px solid #dcdfe6;
-                        border-radius: 3px;
-                        text-align: center;
-                        background-color: #f5f7fa;
-                        min-height: 20px;
-                    }
-                    QProgressBar::chunk {
-                        background-color: #409eff;
-                        border-radius: 2px;
-                    }
-                """)
+
             progress_layout.addWidget(progress_widget)
 
         return progress_container
@@ -1260,3 +1002,18 @@ class TaskListTab(QWidget):
 
             self.refresh_task_list()
             QMessageBox.information(self, "提示", "清理完成")
+
+
+if __name__ == "__main__":
+    import sys
+
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication(sys.argv)
+
+    # 创建任务列表标签页
+    task_list_tab = TaskListTab()
+    task_list_tab.resize(1000, 600)
+    task_list_tab.show()
+
+    sys.exit(app.exec())
